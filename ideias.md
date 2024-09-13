@@ -1,0 +1,1 @@
+-   Passar junto ao acórdão um glossário de termos jurídicos, indicando que a LLM deve substituir os termos do documento original pelos do glossário sempre que possível.

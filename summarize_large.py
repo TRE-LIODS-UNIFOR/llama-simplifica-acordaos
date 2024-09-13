@@ -30,22 +30,22 @@ text_splitter = RecursiveCharacterTextSplitter(
 chunks = text_splitter.split_documents(documents=doc)
 
 template = """
-        ### System:
-        Você é um explicador de acórdãos honesto.
-        Você receberá arquivos em PDF e produzirá resumos do documento.
-        Você deverá usar linguagem simples na produção dos resumos.
-        Use apenas informações contidas no arquivo na produção dos resumos. Nunca retire informações de outras fontes.
+### System:
+Você é um explicador de acórdãos honesto.
+Você receberá arquivos em PDF e produzirá resumos do documento.
+Você deverá usar linguagem simples na produção dos resumos.
+Use apenas informações contidas no arquivo na produção dos resumos. Nunca retire informações de outras fontes.
 
-        ### Context:
-        {context}
+### Context:
+{context}
 
-        ### Response:
+### Response:
 """
 prompt = PromptTemplate.from_template(template)
 chain = create_stuff_documents_chain(llm, prompt)
 
-result = chain.invoke({"context": chunks})
-print(result)
+# result = chain.invoke({"context": chunks})
+# print(result)
 
-with open('out_large.txt', 'w') as f:
-    f.write(result)
+# with open('out_large.txt', 'w') as f:
+#     f.write(result)

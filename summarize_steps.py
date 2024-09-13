@@ -1,12 +1,14 @@
 from langchain.chains import RetrievalQA
-from langchain.chains.combine_documents import create_stuff_documents_chain
+# from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import PromptTemplate
-from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader, TextLoader
 from langchain_ollama import ChatOllama
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 
 from langchain_huggingface import HuggingFaceEmbeddings
+
+from history import save
 
 llm = ChatOllama(
     temperature=0,
@@ -22,7 +24,8 @@ llm = ChatOllama(
     num_ctx=4096,  # Sets the size of the context window used to generate the next token.
     verbose=False
 )
-loader = PyMuPDFLoader(file_path='acordao.pdf')
+# loader = PyMuPDFLoader(file_path='out/output.txt')
+loader = TextLoader('out/ilomar.txt')
 doc = loader.load()
 
 text_splitter = RecursiveCharacterTextSplitter(
@@ -35,27 +38,10 @@ embeddings_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-m
 vectorstore = FAISS.from_documents(chunks, embeddings_model)
 retriever = vectorstore.as_retriever()
 
-template = """
-        ### System:
-        Você é um explicador de acórdãos honesto.
-        Você receberá arquivos em PDF e produzirá resumos do documento.
-        Você deverá usar linguagem simples na produção dos resumos.
-        Use apenas informações contidas no arquivo na produção dos resumos. Nunca retire informações de outras fontes.
-
-        ### Context:
-        {context}
-
-        ### Response:
-"""
+with open("prompts/templates/acordao_completo.txt", "r") as f:
+    template = f.read()
 prompt = PromptTemplate.from_template(template)
 # chain = create_stuff_documents_chain(llm, prompt)
-
-# result = []
-
-# # for chunk in chunks:
-# #     print(type(chunk))
-# #     print(chunk)
-# #     # result.append(chain.invoke({"context": chunk}))
 
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
@@ -64,10 +50,9 @@ qa_chain = RetrievalQA.from_chain_type(
     return_source_documents=True,  # including source documents in output
     chain_type_kwargs={'prompt': prompt}  # customizing the prompt
 )
-response = qa_chain({'query': prompt})
+response = qa_chain.invoke({'query': 'Produza o resumo simplificado.' })
 result = response['result']
 
-with open('out_steps.txt', 'w') as f:
-    f.writelines(result)
+save("steps", template, result)
 
 print("".join(result))

@@ -1,2 +1,11 @@
+.vscode
 .venv
 *.pdf
+*__pycache__
+*.md
+*.txt
+*.csv
+
+!README.md
+!ideias.md
+!requirements.txt
