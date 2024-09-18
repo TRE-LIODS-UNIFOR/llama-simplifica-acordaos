@@ -25,8 +25,12 @@ llm = ChatOllama(
     verbose=False
 )
 # loader = PyMuPDFLoader(file_path='out/output.txt')
-loader = TextLoader('out/ilomar.txt')
+loader = TextLoader('out/ilomar.txt', 'utf8')
 doc = loader.load()
+loader = TextLoader('documentos/glossarios/teste.csv')
+doc = doc + loader.load()
+
+print(type(doc), doc)
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,

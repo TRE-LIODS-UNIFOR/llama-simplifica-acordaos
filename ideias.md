@@ -43,5 +43,11 @@ Em chat:
 Como fazer:
 1.  Usar modo de QA (Questions and Answers);
 2.  Enviar a instrução de redução do documento;
-3.  Enviar a instrução de simplificação junto ao glossário. Usar um fluxograma ou outra forma de especificar a lógica que deve ser empregada.
+3.  Enviar a instrução de simplificação junto ao glossário. Usar um fluxograma ou outra forma de especificar a lógica que deve ser empregada;
 4.  Coletar resposta.
+
+<center>
+
+![](etapas.jpg)
+
+</center>
