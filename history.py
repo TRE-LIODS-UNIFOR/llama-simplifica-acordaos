@@ -5,7 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent
 OUT_DIR = BASE_DIR / 'out'
 
 def save(name: str, prompt: str, response: str) -> None:
-    now = time.strftime("%H-%M-%S_%d-%m-%y")
+    now = time.strftime("%y-%m-%d_%H-%M-%S")
     out_name: str = f"{name}_{now}"
     prompt_name: str = f"{out_name}_p.txt"
     res_name: str = f"{out_name}_r.md"
