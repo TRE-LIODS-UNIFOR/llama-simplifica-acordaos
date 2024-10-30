@@ -120,7 +120,6 @@ if __name__ == '__main__':
             time.sleep(60)
         except:
             save_results(results, 'data_collection_results.csv')
-            break
 
     save_results(results, 'data_collection_results.csv')
     print(results)
