@@ -1,61 +1,129 @@
+import sys
+from uuid import uuid4
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.prompts import PromptTemplate
-from langchain_community.document_loaders import TextLoader
+from langchain_chroma import Chroma
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_ollama import ChatOllama
+from langchain_community.embeddings.ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_core.output_parsers import StrOutputParser
 
-from langchain_huggingface import HuggingFaceEmbeddings
+from config import Config
+from database import PromptDB
+from models import Document, Prompt, Response
 
-from history import save
+db = PromptDB()
 
 llm = ChatOllama(
-    temperature=0,
-    base_url='http://10.10.0.95:11434',
-    model='llama3.1',
+    temperature=Config.OLLAMA_TEMPERATURE,
+    base_url=Config.OLLAMA_BASE_URL,
+    model=Config.OLLAMA_MODEL,
     streaming=True,
-    top_k=10,   # A higher value (100) will give more diverse answers, while a lower value (10) will be more conservative.
-    top_p=0.3,  # Higher value (0.95) will lead to more diverse text, while a lower value (0.5) will generate more
-    # focused text.
-    num_ctx=4096,  # Sets the size of the context window used to generate the next token.
-    verbose=False
+    top_k=Config.OLLAMA_TOP_K,   # A higher value (100) will give more diverse answers, while a lower value (10) will be more conservative.
+    top_p=Config.OLLAMA_TOP_P,  # Higher value (0.95) will lead to more diverse text, while a lower value (0.5) will generate more focused text.
+    num_ctx=Config.OLLAMA_CONTEXT_SIZE,  # Sets the size of the context window used to generate the next token.
+    verbose=False,
+    keep_alive=Config.OLLAMA_KEEP_ALIVE
 )
-# loader = PyMuPDFLoader(file_path='out/output.txt')
-loader = TextLoader('out/ilomar.txt', 'utf8')
+
+document_id = sys.argv[1]
+# print(f"document_id: {document_id}")
+
+loader = PyMuPDFLoader(file_path=f'documentos/acordaos/{document_id}')
 doc = loader.load()
 
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=20
+document = Document(
+    id=document_id
 )
-chunks = text_splitter.split_documents(documents=doc)
+document_id = db.insert_document(document)
 
-embeddings_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-vectorstore = FAISS.from_documents(chunks, embeddings_model)
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=Config.SPLITTER_CHUNK_SIZE,
+    chunk_overlap=Config.SPLITTER_CHUNK_OVERLAP
+)
+chunks = text_splitter.split_documents(documents=[doc[0]])
+
+# print(f"amount of chunks: {len(chunks)}")
+# pprint(chunks)
+
+embeddings_model = OllamaEmbeddings(
+    base_url=Config.OLLAMA_EMBEDDINGS_BASE_URL,
+    model=Config.OLLAMA_EMBEDDINGS_MODEL
+)
+vectorstore = Chroma(
+    collection_name='acordaos',
+    embedding_function=embeddings_model,
+    persist_directory=f'./chroma_db/{document_id.split('.')[0]}'
+)
+vectorstore.add_documents(documents=chunks)
 retriever = vectorstore.as_retriever()
 
-glossario = TextLoader('documentos/glossarios/teste.csv')
-glossario = glossario.load()
+with open('prompts/simplificar_acordao/cabecalho.txt', 'r') as f:
+    prompt_text = f.read()
+    prompt = PromptTemplate.from_template(prompt_text)
 
-chunks = text_splitter.split_documents(documents=glossario)
-vectorstore_2 = FAISS.from_documents(chunks, embeddings_model)
-retriever_2 = vectorstore_2.as_retriever()
+# prompt_id = str(uuid4())
+# prompt_id = db.insert_prompt(
+#     Prompt(
+#         id=prompt_id,
+#         temperature=Config.OLLAMA_TEMPERATURE,
+#         prompt=prompt_text,
+#         chunk_overlap=Config.SPLITTER_CHUNK_OVERLAP,
+#         chunk_size=Config.SPLITTER_CHUNK_SIZE,
+#         context_size=Config.OLLAMA_CONTEXT_SIZE,
+#         embeddings_model=Config.OLLAMA_EMBEDDINGS_MODEL,
+#         model=Config.OLLAMA_MODEL,
+#         top_k=Config.OLLAMA_TOP_K,
+#         top_p=Config.OLLAMA_TOP_P,
+#         created_at=None
+#     )
+# )
 
-prompts = []
+document_chain = create_stuff_documents_chain(llm, prompt)
+retrieval_chain = create_retrieval_chain(retriever, document_chain)
 
-with open("prompts/simplificar_acordao/1 - listar_pontos_principais.txt", "r") as f:
-    prompts.append(PromptTemplate.from_template(f.read()))
-with open("prompts/simplificar_acordao/3 - listar_complexos.txt", "r") as f:
-    prompts.append(PromptTemplate.from_template(f.read()))
+def write_chunk(chunk):
+    with open('chunks.txt', 'a') as f:
+        f.write(chunk)
 
-chain = create_stuff_documents_chain(llm, prompts[0])
-qa_chain = create_retrieval_chain(retriever, chain)
+chunks = []
 
-lista_complexos = {'acordao': qa_chain} | prompts[1] | llm | StrOutputParser()
-result = lista_complexos.invoke({'input': 'Inicie.'})
+for chunk in retrieval_chain.stream(
+    {'input':
+        'Liste os tópicos especificados anteriormente no prompt de sistema.'}
+):
+    answer = chunk.get('answer', '')
+    chunks.append(answer)
+    write_chunk(answer)
+    print(answer, end='', flush=True)
+print()
 
-save('simplificar_acordao', '', result)
+#answer = result['answer']
+# print(answer)
+# try:
+#     quality = int(input('quality (0-10): '))
+# except KeyboardInterrupt:
+#     quality = -1
 
-print("".join(result))
+# response_id = str(uuid4())
+# db.insert_response(
+#     Response(
+#         id=response_id,
+#         prompt_id=prompt_id,
+#         quality=quality,
+#         response=answer,
+#         created_at=None,
+#         document_id=document_id
+#     )
+# )
+
+# db.commit()
+# db.close()
+
+# corpo = "# TRIBUNAL REGIONAL ELEITORAL DO CEARÁ\n\n" + corpo
+
+# to_save = corpo
+# save('simplificar_acordao', '', to_save)
+
+# print("".join(result))
