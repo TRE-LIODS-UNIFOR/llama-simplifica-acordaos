@@ -1,9 +1,16 @@
+from pathlib import Path
 from pprint import pprint
+from call_llms import call_llms
+from config import Config
 from llms import get_llama
+from mapreduce import mapreduce, parallel_mapreduce
 from ner import NER
+import preprocess
+from prompts.prompts import SimplePrompt
+import rank_responses
 from semantic_similarity import get_similarity_score
-from stuff import most_similar, n_stuff, stuff
-from split_documents import split_documents
+from stuff import most_similar, n_stuff
+from split_documents import split_text
 from langchain.prompts import PromptTemplate
 from postprocessing import postprocess
 
@@ -174,55 +181,125 @@ Texto refinado:
 Texto refinado sem redundâncias:"""
 
 
-def summarize_section(doc_path, start_page, end_page, prompt, base_url=None, verbose=False):
-    doc = split_documents(doc_path, start_page, end_page)
-    prompt_template = PromptTemplate.from_template(prompt)
+def summarize_section(document_contents: str, prompt: str = None, base_url: str = None, verbose: bool = False, input_variables: dict[str, str] = None, ground_truth: Path = None, model_configuration: dict = None):
+    # Dividindo o texto em chunks
+    docs = split_text(document_contents)
+    # Produzindo o primeiro resumo, com MapReduce
+    resumos = [res['response'] for res in parallel_mapreduce(docs)]
+    resumo = rank_responses.by_similarity(resumos, document_contents)[0][0]
+    # resumo = postprocess(resumo, document_contents)
+    docs = split_text(resumo)
 
     if verbose:
         print("Processamento inicial")
-    process = n_stuff(n=3, docs=doc, results={'result': {}}, key='result', prompt=prompt_template, base_url=base_url, verbose=verbose)
-    res, score = most_similar(*process)
+    # Processando o resumo inicial n vezes para obter a resposta mais similar
+    res, score = n_stuff(n=3, docs=docs, prompt=prompt)
+    pprint(res)
+    pprint(score)
+    # res, score = rank_responses.by_similarity(process, document_contents)[0]
+    best = most_similar(res, score)
     if verbose:
         print("Resposta mais similar:")
         print(score)
-        pprint(res)
-    pass
 
     if verbose:
         print("Pós-processamento")
         print("Detectando omissões")
-    post = postprocess(res, doc_path, start_page, end_page, base_url=base_url)
+    # Pós-processamento: detectando omissões, refinando o resumo
+    post = postprocess(best[0], document_contents)
     if verbose:
         print(post)
 
-    llm = get_llama(base_url=base_url)
-
     if verbose:
         print("Removendo redundâncias")
-    redundant_sentences_prompt = Prompts.SENTENCAS_REDUNDANTES
-    redundant_sentences_chain = PromptTemplate.from_template(redundant_sentences_prompt) | llm
-    redundant_sentences_res = redundant_sentences_chain.invoke({'refined': post})
+    redundant_sentences_res = call_llms([
+        {
+            "model": Config.OLLAMA_MODEL,
+            "prompt": SimplePrompt(Prompts.SENTENCAS_REDUNDANTES.format(refined=post)),
+            "options": {
+                'temperature': 0.25,
+                'top_k': 5,
+                'top_p': 0.25,
+            }
+        }
+    ])
+    res = [res[0]['response'] for res in redundant_sentences_res]
+    res, score = rank_responses.by_similarity(res, post)
+    if verbose:
+        print(res)
 
     if verbose:
         print("Refinando texto")
-    refine_prompt = PromptTemplate.from_template(Prompts.REFINAR_REDUNDANCIAS)
-    refine_chain = refine_prompt | llm
-    refine_res = refine_chain.invoke({'refined': post, 'redundancies': redundant_sentences_res.content})
+    refine_res = call_llms([
+        {
+            "model": Config.OLLAMA_MODEL,
+            "prompt": SimplePrompt(Prompts.REFINAR_REDUNDANCIAS.format(redundancies=redundant_sentences_res.content, refined=post)),
+            "options": {
+                'temperature': 0.25,
+                'top_k': 5,
+                'top_p': 0.25,
+            }
+        } for _ in range(3)
+    ])
+    res = [res[0]['response'] for res in refine_res]
+    res, score = rank_responses.by_similarity(res, post)
+    if verbose:
+        print(res)
 
-    original_content = "\n".join([page.page_content for page in doc])
+    return res, get_similarity_score(res, document_contents, method='bertscore', model_name='neuralmind/bert-large-portuguese-cased')
+    # return best
 
-    return refine_res.content, get_similarity_score(refine_res.content, original_content, method='bertscore')
+def alternate_prompt(prompt):
+    escaped = prompt.replace('{', '{{').replace('}', '}}')
+
+    llm = get_llama(config={'temperature': 0.1, 'top_p': 0.3, 'top_k': 5})
+    alternate = PromptTemplate.from_template("""Gere 3-5 versões do seguinte prompt, que contém instruções para resumir um acórdão, e um modelo de resposta. Ajuste as instruções, mas mantenha o modelo intacto.
+
+    ```
+    {prompt}
+    ```
+
+    Versão alternativa:""")
+    chain = alternate | llm
+    res = chain.invoke({'prompt': escaped})
+    return res.content
 
 
 if __name__ == "__main__":
-    doc_path = "documentos/acordaos/0600012-49_REl_28052024_1.txt"
+    # print(alternate_prompt(Prompts.RELATORIO))
+
+    with open("documentos/acordaos/0600012-49_REl_28052024_1.pdf", "rb") as f:
+        doc = f.read()
+    document_contents = preprocess.extract_text_from_pdf(doc)
+    relatorio_contents = preprocess.partition(doc, 2, 5)
 
     print('Relatório')
-    start_page = 2
-    end_page = 5
+    print('Map Reduce')
+    doc = split_text(relatorio_contents)
+    resumo = mapreduce(doc)
+    resumo = postprocess(resumo, relatorio_contents)
+
     prompt = Prompts.RELATORIO
-    relatorio = summarize_section(doc_path, start_page, end_page, prompt, verbose=True)
+    relatorio = summarize_section(
+        doc,
+        prompt,
+        verbose=True,
+        from_file=False,
+        doc=resumo,
+    )
     print(relatorio, '\n\n\n')
+
+    # prompt = """Este é um resumo de um acórdão eleitoral. Refine o resumo, incluindo as seguintes informações omitidas no resumo original, mantendo sua estrutura original.
+
+    # Resumo original:
+    # {original}
+
+    # Informações omitidas:
+    # {context}
+
+    # Resumo refinado:"""
+    # relatorio = summarize_section(doc_path, start_page, end_page, prompt, verbose=True, from_file=False, doc=resumo, input_variables={'original': resumo})
+    # print(relatorio)
 
     # print('Voto')
     # start_page = 5

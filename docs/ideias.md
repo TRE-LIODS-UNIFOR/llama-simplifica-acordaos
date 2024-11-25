@@ -51,3 +51,17 @@ Como fazer:
 ![](etapas.jpg)
 
 </center>
+
+---
+
+### Data
+
+18/09
+
+### Situação
+
+Os prompts geram resultados inconsistentes.
+
+### Solução
+
+Mostrar exemplos de resultados desejados.

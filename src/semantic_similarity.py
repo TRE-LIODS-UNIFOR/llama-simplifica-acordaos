@@ -1,21 +1,41 @@
 from bert_score import score
+from config import Config
 from llms import get_embeddings_model
 from langchain_community.utils.math import cosine_similarity
 
-from split_documents import split_documents
+from split_documents import split_documents, split_text
+
+import torch
+from transformers import AutoModel, AutoTokenizer
 
 
-def get_similarity_score(summarized: str, original: str, method: str = 'cosine') -> float:
+def get_similarity_score(summarized: str, original: str, method: str = 'cosine', model_name=Config.BERTSCORE_MODEL, model_num_layers=Config.BERTSCORE_MODEL_N_LAYERS) -> float:
     if method == 'cosine':
-        embeddings_model = get_embeddings_model()
-        summarized_embeddings = [embeddings_model.embed_query(summarized)]
-        original_embeddings = [embeddings_model.embed_query(original)]
-
+        summarized_embeddings = embed(summarized, model_name)
+        original_embeddings = embed(original, model_name)
         similarity = cosine_similarity(summarized_embeddings, original_embeddings)
-        return similarity[0][0]
+        return similarity[0][0].item()
     elif method == 'bertscore':
-        # model_name = 'rufimelo/Legal-BERTimbau-base'
-        return score([summarized], [original], lang='pt')[2].item()
+        try:
+            bertscore = score([summarized], [original], lang='pt', model_type=model_name, num_layers=model_num_layers)[2].item()
+        except RuntimeError:
+            chunks = split_text(summarized, 512, 32)
+            scores = [score([chunk], [original], lang='pt', model_type=model_name, num_layers=model_num_layers)[2].item()[2] for chunk in chunks]
+            bertscore = sum(scores) / len(scores)
+        return bertscore
+
+def embed(text: str, model_name=Config.BERTSCORE_MODEL) -> torch.Tensor:
+    model = AutoModel.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    input_ids = tokenizer.encode(text, return_tensors='pt')
+    with torch.no_grad():
+        embeddings = model(input_ids)
+    embeddings = embeddings[0][0, 1:-1]
+
+    # Normalize embeddings
+    embeddings = embeddings / torch.norm(embeddings, dim=-1, keepdim=True)
+
+    return embeddings
 
 
 if __name__ == "__main__":

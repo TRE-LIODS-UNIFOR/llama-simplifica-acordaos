@@ -1,5 +1,4 @@
 from pprint import pprint
-from threading import Lock
 from langchain.chains import (
     LLMChain,
     StuffDocumentsChain,
@@ -8,27 +7,38 @@ from langchain.chains import (
 )
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_ollama import ChatOllama
-from langchain_community.document_loaders import TextLoader, PyMuPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
 
+from call_llms import call_llms
 from config import Config
-from database import PromptDB
-import history
 from llms import get_llama
+from prompts.prompts import SimplePrompt
 
-def mapreduce(docs, host, results, key, lock):
-    llm: ChatOllama = get_llama(host=host)
+class Prompts:
+    MAP = """
+Responda com um resumo fiel de até três parágrafos do seguinte texto (Responda apenas com o resumo, e mais nada):
+
+{context}
+"""
+    REDUCE = """
+Combine os seguintes resumos de diferentes partes do mesmo texto, mantendo a ordem dos fatos e a coerência, produzindo um novo resumo (Responda apenas com o novo resumo, e mais nada):
+
+{context}
+"""
+
+def mapreduce(docs, host=0, results=None, key=None, lock=None):
+    llm: ChatOllama = get_llama(host=host, log_callbacks=True,)
 
     # Map
     map_template = """
-        ### SISTEMA
-        Responda com um resumo fiel de até três parágrafos dos documentos no contexto.
-        Responda apenas com o resumo, e mais nada.
+### SISTEMA
+Responda com um resumo fiel de até três parágrafos dos documentos no contexto.
+Responda apenas com o resumo, e mais nada.
 
-        ### CONTEXTO
-        {docs}.
+### CONTEXTO
+{docs}
 
-        ### RESPOSTA:
+### RESPOSTA:
     """
     map_prompt = ChatPromptTemplate([("human", map_template)])
     map_chain = LLMChain(llm=llm, prompt=map_prompt)
@@ -94,8 +104,7 @@ def mapreduce(docs, host, results, key, lock):
         (responda apenas com o texto separado, e nada mais)
         '''
     )
-    format_chain = LLMChain(llm=llm, prompt=format_template)
-
+    format_chain = format_template | llm
 
     print(f"calling {host}")
 
@@ -113,65 +122,52 @@ def mapreduce(docs, host, results, key, lock):
     #     '''
     # )
 
-    with lock:
-        results[key]['response'] = result['text']
-        results[key]['prompt'] = [
-            str(map_prompt),
-            str(reduce_prompt),
-            str(format_template),
-        ]
+    if results and key and lock:
+        with lock:
+            results[key]['response'] = result['text']
+            results[key]['prompt'] = [
+                str(map_prompt),
+                str(reduce_prompt),
+                str(format_template),
+            ]
 
     # history.save('mapreduce', '', result['text'])
-    return result
+    return result.content
 
-def split_documents(file_path, page_start=None, page_end=None):
-    loader = PyMuPDFLoader(file_path=file_path)
-    doc = loader.load()[page_start:page_end]
-
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=Config.SPLITTER_CHUNK_SIZE,
-        chunk_overlap=Config.SPLITTER_CHUNK_OVERLAP
+def parallel_mapreduce(docs: list[Document]):
+    map_results = call_llms(
+        [
+            {
+                "model": Config.OLLAMA_MODEL,
+                "prompt": SimplePrompt(Prompts.MAP.format(context=doc.page_content)),
+                "options": {
+                    'temperature': 0.0,
+                    'top_k': 2,
+                    'top_p': 0.05,
+                },
+                "key": i
+            } for i, doc in enumerate(docs)
+        ],
+        n_workers=4,
+        sort=True
     )
-    docs = text_splitter.split_documents(doc)
-    return docs
+    summary = "\n".join([result[0]['response'] for result in map_results])
+    # del(map_results)
 
-def main():
-    import sys
-    from threading import Thread
-
-    file_path = sys.argv[1]
-    relatorio_start = int(sys.argv[2])
-    relatorio_end = int(sys.argv[3])
-    voto_start = int(sys.argv[4])
-    voto_end = int(sys.argv[5])
-
-    doc_relatorio, doc_voto = None, None
-
-    if relatorio_start != -1 and relatorio_end != -1:
-        doc_relatorio = split_documents(file_path, relatorio_start, relatorio_end)
-    if voto_start != -1 and voto_end != -1:
-        doc_voto = split_documents(file_path, voto_start, voto_end)
-
-    results = {
-        'relatorio': {},
-        'voto': {},
-    }
-
-    lock = Lock()
-
-    threads = set([
-        Thread(target=mapreduce, args=(doc_relatorio, 0, results, 'relatorio', lock)) if doc_relatorio else Thread(target=lambda x: x, args=(0,)),
-        Thread(target=mapreduce, args=(doc_voto, 0, results, 'voto', lock)) if doc_voto else Thread(target=lambda x: x, args=(0,)),
-    ])
-
-    for thread in threads:
-        thread.start()
-    for thread in threads:
-        thread.join()
-
-    pprint(results)
-    history.save('acordao_resumido', "\n\n".join([results[i]['prompt'] for i in results]), "\n\n".join([results[i]['response'] for i in results]))
-
-
-if __name__ == '__main__':
-    main()
+    reduce_results = call_llms(
+        [
+            {
+                "model": Config.OLLAMA_MODEL,
+                "prompt": SimplePrompt(Prompts.REDUCE.format(context=summary)),
+                "options": {
+                    'temperature': 0.25,
+                    'top_k': 5,
+                    'top_p': 0.25,
+                },
+                "key": i
+            } for i in range(4)
+        ],
+        n_workers=4,
+        sort=True
+    )
+    return [result[0] for result in reduce_results]

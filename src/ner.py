@@ -13,6 +13,9 @@ class NER:
         self._model = BertForTokenClassification.from_pretrained(model_name)
         self._ner = pipeline('ner', model=self._model, tokenizer=self._tokenizer)
 
+    def __call__(self, text):
+        return self._ner(text)
+
     @property
     def model(self):
         return self._model

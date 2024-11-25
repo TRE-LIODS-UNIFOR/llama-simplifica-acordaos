@@ -1,13 +1,49 @@
+from collections import Counter
+from io import BytesIO
 import os
 from pathlib import Path
-from typing import List
-import pandas as pd
 import pymupdf
 
-from collections import Counter
 
+def find_repetitions(doc: bytes | BytesIO, cluster_size: int) -> list[str]:
+    pages = extract_text_from_pdf(doc).split("\n-----\n")
+    n = len(pages)
 
-def separar(document: str, start_keyword: str, end_keyword: str, page_separator = "\n-----\n") -> dict[str, str]:
+    content = "\n".join(pages)
+    lines = content.split("\n")
+    clusters = []
+    for j in range(len(lines) - cluster_size):
+        clusters.append("\n".join([line for line in lines[j:j+cluster_size]]))
+    counter = Counter(clusters)
+    common = counter.most_common(4)
+    for i, (cluster, count) in enumerate(common):
+        print(f"Cluster {i+1} ({count} repetitions):")
+        print(cluster)
+        print()
+
+    return counter
+    # repetitions = []
+    # for page in pages:
+    #     text = page.get_text()
+    #     lines = text.split("\n")
+    #     for line in lines:
+    #         if line.strip() in repetitions:
+    #             continue
+    #         if lines.count(line) > 1:
+    #             repetitions.append(line.strip())
+    # return repetitions
+
+# def get_header(doc: bytes | BytesIO) -> str:
+#     content = pymupdf.Document(stream=doc)
+#     cabecalho = content[0].get_text()
+#     lines = cabecalho.split("\n")
+#     lines = [line.strip() for line in lines if len(line.strip())]
+
+def partition(document: bytes | BytesIO, start: int, end: int) -> str:
+    pages = extract_text_from_pdf(document).split("\n-----\n")
+    return "\n".join(pages[start:end])
+
+def auto_partition(document: str, start_keyword: str, end_keyword: str, page_separator = "\n-----\n") -> dict[str, str]:
     start = end = 0
     pages = document.split(page_separator)
     for i, page in enumerate(pages):
@@ -30,80 +66,41 @@ def save_document(out_path: Path, contents: str):
         f.write(contents)
     print(f"Saved {out_path}")
 
-def extract_text_from_pdf(pdf_path: Path, save_document=False) -> Path:
+def extract_text_from_pdf(pdf: bytes | BytesIO, save_document=False, footer_lines=2) -> str:
     """
-    Extrai o conteúdo do PDF em 'pdf_path' para um arquivo de texto que será
-    criado em 'out_dir'
-    Quebras de página serão demarcadas com '\n-----\n'
+    Extrai o conteúdo do PDF em 'pdf_path' para texto. Quebras de página serão demarcadas com '\n-----\n'
     """
-    doc = pymupdf.open(pdf_path)
+    doc = pymupdf.Document(stream=pdf)
 
     contents = []
-    for page in doc:
-        text = page.get_text(sort=True).encode("utf8")
-        decoded = text.decode("utf8")
-        decoded = decoded.replace(" \n", " ")
-        decoded = decoded.strip()
-        decoded = "\n".join(list(filter(lambda line: len(line), decoded.split("\n"))))
-        decoded = "\n".join(decoded.split("\n"))
-        decoded = decoded + "\n-----\n"
-        contents.append(decoded)
-    text_contents = "\n".join(contents)
-    # lines = [[line.strip().lower() for line in lines.split("\n")] for lines in contents]
-    lines = [line.strip().lower() for lines in contents for line in lines.split("\n")]
-    # print(lines)
-
-    counter = Counter(lines)
-    top = counter.most_common(20)
-    keys = [k[:25] for k in list(counter.keys())]
-    values = list(counter.values())
-    for k, v in top:
-        print(k, v)
+    for i, page in enumerate(doc):
+        text = page.get_text(sort=True)
+        text = text.replace(" \n", " ")
+        lines = text.split("\n")
+        lines = [line.strip() for line in lines]
+        lines = [line for line in lines if len(line)]
+        if footer_lines:
+            text = "\n".join(lines[:-(footer_lines)])
+        else:
+            text = "\n".join(lines)
+        if i < len(doc) - 1:
+            text = text + "\n-----\n"
+        contents.append(text)
+    text_contents = "".join(contents)
 
     return text_contents
-
-def read_tables(pdf_path: Path, vertical_lines: List[float]) -> List:
-    doc: pymupdf.Document = pymupdf.open(pdf_path)
-    table: pd.DataFrame = pd.DataFrame()
-    for page in doc:
-        tabs = page.find_tables(vertical_lines=vertical_lines)
-        if tabs.tables:
-            for tab in tabs:
-                tab.insert(0, [i for i in range(len(tab[0]))])
-                df = tab.to_pandas()
-                filtered = df.fillna(value='')
-                print(filtered)
-                table.append(tab.extract()[0])
-    return table
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Extract text from PDF")
     parser.add_argument("pdf_path", type=Path, help="Path to the PDF file")
-    parser.add_argument("out_dir", type=Path, help="Path to the output directory", nargs='*')
     args = parser.parse_args()
 
-    text = extract_text_from_pdf(args.pdf_path, args.out_dir, False)
-    filename = Path(args.pdf_path).stem
+    with open(args.pdf_path, "rb") as pdf:
+        text = extract_text_from_pdf(pdf.read(), False)
+    path = Path(args.pdf_path)
+    filename = path.stem
 
-    cabecalho = separar(text, "", "RELATÓRIO")
-    relatorio = separar(text, "RELATÓRIO", "VOTO")
-    voto = separar(text, "VOTO", "DISPOSITIVO")
-    dispositivo = separar(text, "DISPOSITIVO", "")
-
-    print(cabecalho[0], cabecalho[1])
-    print(relatorio[0], relatorio[1])
-    print(voto[0], voto[1])
-    print(dispositivo[0], dispositivo[1])
-
-    pages = text.split("\n-----\n")
-    out_dir = Path(os.path.dirname(args.pdf_path))
-    save_document(out_dir / filename / 'cabecalho.txt', "\n".join(pages[cabecalho[0]:cabecalho[1]]))
-    save_document(out_dir / filename / 'relatorio.txt', "\n".join(pages[relatorio[0]:relatorio[1]]))
-    save_document(out_dir / filename / 'voto.txt', "\n".join(pages[voto[0]:voto[1]]))
-    save_document(out_dir / filename / 'dispositivo.txt', "\n".join(pages[dispositivo[0]:dispositivo[1]]))
-
-    # extract_text_from_pdf(args.pdf_path, args.out_dir)
-    # print(f"Text extracted from {args.pdf_path} to {args.out_dir}")
-
+    with open(f"documentos/acordaos/{filename}.txt", "w") as f:
+        f.write(text)

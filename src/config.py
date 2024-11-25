@@ -19,6 +19,8 @@ class Config:
     OLLAMA_EMBEDDINGS_MODEL = environ.get('OLLAMA_EMBEDDINGS_MODEL')
     OLLAMA_REPEAT_LAST_N = environ.get('OLLAMA_REPEAT_LAST_N')
 
+    OLLAMA_BASE_URL_POOL = environ.get('OLLAMA_BASE_URL_POOL').split(',')
+
     OLLAMA_MODEL_2 = environ.get('OLLAMA_MODEL_2')
     OLLAMA_BASE_URL_2 = environ.get('OLLAMA_BASE_URL_2')
     OLLAMA_CONTEXT_SIZE_2 = environ.get('OLLAMA_CONTEXT_SIZE_2')
@@ -32,3 +34,5 @@ class Config:
     SPLITTER_CHUNK_SIZE = int(environ.get('SPLITTER_CHUNK_SIZE'))
     SPLITTER_CHUNK_OVERLAP = int(environ.get('SPLITTER_CHUNK_OVERLAP'))
 
+    BERTSCORE_MODEL = environ.get('BERTSCORE_MODEL')
+    BERTSCORE_MODEL_N_LAYERS = int(environ.get('BERTSCORE_MODEL_N_LAYERS'))
