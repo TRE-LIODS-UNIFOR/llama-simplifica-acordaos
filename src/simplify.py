@@ -29,7 +29,7 @@ def simplify_segments(segments):
             'key': i
         } for i, sentence in enumerate(segments)
     ])
-    responses = list(sorted(responses, key=lambda x: x[1]))
+    responses = list(sorted(responses, key=lambda x: x[1])) # type: ignore
     simplified = [res[0]['response'].replace("\"", "").strip() for res in responses]
 
     scores = []
@@ -38,7 +38,7 @@ def simplify_segments(segments):
         scores.append(score)
     return simplified, scores
 
-def build_from_simplified(segments, scores, original, similarity_threshold=0.8):
+def build_from_simplified(segments, scores, original, similarity_threshold=0.8) -> tuple[list[str], float, float, float, list[str]]:
     """
     De uma lista de segmentos simplificados, constrói um texto final, mantendo os segmentos originais cuja simplificação não está acima do limite.
     """
@@ -64,18 +64,18 @@ def build_from_simplified(segments, scores, original, similarity_threshold=0.8):
 
     scores = []
     for simple, sentence in zip(simplified_merged, original_merged):
-        # print(simple, sentence)
         _score = get_similarity_score(simple, sentence, method='bertscore')
         scores.append(_score)
     overall_score = sum(scores) / len(scores)
 
     return new_segments, score, ratio, overall_score, simplified_merged
 
-def simplify(text):
+def simplify(text) -> tuple[str, float, float]:
     segment = segment_sentences.segment(text)
     simplified, scores = simplify_segments(segment)
-    simplified, score, ratio, overall_score, simplified_merged = build_from_simplified(simplified, scores, segment)
-    return simplified, score, ratio, overall_score, simplified_merged
+    simplified_paragraphs, score, ratio, overall_score, simplified_merged = build_from_simplified(simplified, scores, segment)
+    simplified = "".join(simplified_paragraphs)
+    return simplified, overall_score, ratio
 
 def list_complex(text):
     prompt = PromptTemplate.from_template(

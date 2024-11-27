@@ -39,7 +39,9 @@ def find_repetitions(doc: bytes | BytesIO, cluster_size: int) -> list[str]:
 #     lines = cabecalho.split("\n")
 #     lines = [line.strip() for line in lines if len(line.strip())]
 
-def partition(document: bytes | BytesIO, start: int, end: int) -> str:
+def partition(document: bytes | BytesIO | None, start: int, end: int) -> str:
+    if document is None:
+        raise ValueError("Document is None")
     pages = extract_text_from_pdf(document).split("\n-----\n")
     return "\n".join(pages[start:end])
 

@@ -1,3 +1,5 @@
+# type: ignore
+
 from dataclasses import dataclass
 from dotenv import load_dotenv
 from os import environ
@@ -16,7 +18,7 @@ class Config:
     OLLAMA_TOP_P = environ.get('OLLAMA_TOP_P')
     OLLAMA_TOP_K = environ.get('OLLAMA_TOP_K')
     OLLAMA_EMBEDDINGS_BASE_URL = environ.get('OLLAMA_EMBEDDINGS_BASE_URL')
-    OLLAMA_EMBEDDINGS_MODEL = environ.get('OLLAMA_EMBEDDINGS_MODEL')
+    OLLAMA_EMBEDDINGS_MODEL = environ.get('OLLAMA_EMBEDDINGS_MODEL', 'nomic-embed-text')
     OLLAMA_REPEAT_LAST_N = environ.get('OLLAMA_REPEAT_LAST_N')
 
     OLLAMA_BASE_URL_POOL = environ.get('OLLAMA_BASE_URL_POOL').split(',')
@@ -34,5 +36,5 @@ class Config:
     SPLITTER_CHUNK_SIZE = int(environ.get('SPLITTER_CHUNK_SIZE'))
     SPLITTER_CHUNK_OVERLAP = int(environ.get('SPLITTER_CHUNK_OVERLAP'))
 
-    BERTSCORE_MODEL = environ.get('BERTSCORE_MODEL')
+    BERTSCORE_MODEL = environ.get('BERTSCORE_MODEL', 'bert-base-multilingual-cased')
     BERTSCORE_MODEL_N_LAYERS = int(environ.get('BERTSCORE_MODEL_N_LAYERS'))

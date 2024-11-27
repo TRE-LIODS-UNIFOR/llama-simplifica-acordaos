@@ -10,7 +10,7 @@ from segment_sentences import segment
 from split_documents import split_documents, split_text
 from stuff import stuff
 
-def postprocess(processed_result: str, original: str, model_configurations: dict = None) -> str:
+def postprocess(processed_result: str, original: str, model_configurations: dict | None = None) -> str:
     """
     Encontra as entidades omitidas na versão resumida, e produz uma nova versão mais completa.
     """
@@ -60,28 +60,39 @@ def postprocess(processed_result: str, original: str, model_configurations: dict
         'input': 'Comece.',
     })['answer']
 
-def fact_check(processed_result: str = None, original_document_path: str = None, page_start: int = None, page_end: int = None, host: int = 0, base_url: int | None = None, model_configurations: dict = None) -> str:
+def fact_check(processed_result: str | None = None, original_document_path: str | None = None, page_start: int | None = None, page_end: int | None = None, host: int = 0, base_url: int | None = None, model_configurations: dict | None = None) -> str:
     """
     Verifica a veracidade de um resumo em relação ao documento original.
     """
+    if processed_result is None:
+        raise ValueError("processed_result must be provided")
+    if original_document_path is None:
+        raise ValueError("original_document_path must be provided")
+    if page_start is None:
+        raise ValueError("page_start must be provided")
+    if page_end is None:
+        raise ValueError("page_end must be provided")
+    if base_url is None:
+        raise ValueError("base_url must be provided")
+    if model_configurations is None:
+        raise ValueError("model_configurations must be provided")
     filtered_result = processed_result.replace('**', '')
     sentences = segment(filtered_result)
 
     doc = split_documents(original_document_path, page_start, page_end)
-    fact_check_prompt = PromptTemplate.from_template("""
-    Com base no seguinte resumo de um acórdão, verifique a veracidade da seguinte afirmação, respondendo com 'Sim' se for verídica, e 'Não' se for falsa.
+    fact_check_prompt = """Com base no seguinte resumo de um acórdão, verifique a veracidade da seguinte afirmação, respondendo com 'Sim' se for verídica, e 'Não' se for falsa.
 
-    Resumo:
-    {resumo}
+Resumo:
+{resumo}
 
-    Afirmação:
-    {afirmacao}
+Afirmação:
+{afirmacao}
 
-    Contexto:
-    {context}
+Contexto:
+{context}
 
-    Resposta:
-""")
+Resposta:
+"""
 
     checks = []
     for sentence in sentences:
@@ -89,37 +100,31 @@ def fact_check(processed_result: str = None, original_document_path: str = None,
         res = stuff(
             doc,
             prompt=fact_check_prompt,
-            base_url=base_url,
             template_kvs={'afirmacao': sentence, 'resumo': processed_result},
             model_configuration=model_configurations
         )
         print(res)
         checks.append(res)
 
-    correcoes_prompt = PromptTemplate.from_template(
-        """
-        A seguinte afirmação está presente no resumo. Verifique se a afirmação é verdadeira comparando com o texto no contexto. Apresente o raciocínio passo a passo e apresente uma versão corrigida da afirmação.
+    correcoes_prompt = """A seguinte afirmação está presente no resumo. Verifique se a afirmação é verdadeira comparando com o texto no contexto. Apresente o raciocínio passo a passo e apresente uma versão corrigida da afirmação.
 
-        Afirmação:
-        {afirmacao}
+Afirmação:
+{afirmacao}
 
-        Contexto:
-        ```
-        {context}
-        ```
+Contexto:
+```
+{context}
+```
 
-        Versão corrigida:
-        """
-    )
-
-    model_configurations['temperature'] = 0.1
+Versão corrigida:
+"""
 
     resumo_corrigido = processed_result
     for afirmacao, check in zip(sentences, checks):
         if check == 'Sim.':
             continue
         else:
-            resumo_corrigido = stuff(doc, prompt=correcoes_prompt, base_url=base_url, template_kvs={'afirmacao': afirmacao}, model_configuration=model_configurations)
+            resumo_corrigido = stuff(doc, prompt=correcoes_prompt, template_kvs={'afirmacao': afirmacao})
             print(resumo_corrigido, '\n')
 
     return resumo_corrigido
@@ -140,4 +145,4 @@ igualdade de oportunidades entre os candidatos foi vulnerado, pois o ato do cand
 """[24:]
     paragraphs = processed_result.split("\n\n")
 
-    print(fact_check(processed_result=paragraphs[0], original_document_path='documentos/acordaos/0600012-49_REl_28052024_1.txt', page_start=2, page_end=5, base_url='http://10.10.0.99:11434'))
+    print(fact_check(processed_result=paragraphs[0], original_document_path='documentos/acordaos/0600012-49_REl_28052024_1.txt', page_start=2, page_end=5))

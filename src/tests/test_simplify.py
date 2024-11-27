@@ -5,7 +5,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from segment_sentences import segment
-from simplify import bert_sinonimos, build_from_simplified, collapse, long_period, personalize, simplify_segments
+from simplify import bert_sinonimos, build_from_simplified, collapse, long_period, personalize, simplify, simplify_segments
 from semantic_similarity import get_similarity_score
 
 relatorio = """O recorrente Antônio Ilomar Vasconcelos Cruz impugna a sentença proferida pelo Juízo Eleitoral da 33ª Zona - Canindé/CE que julgou parcialmente procedente os pedidos da Representação Eleitoral por propaganda antecipada e condenou o recorrente ao pagamento de multa no valor de R$ 15.000,00.
@@ -49,10 +49,14 @@ O recurso foi apresentado pelo recorrente Antônio Ilomar Vasconcelos Cruz, que 
 
 def test_simplify():
     text = relatorio
-    segments = segment(text)
-    _, scores = simplify_segments(segments)
-    avg = sum(scores) / len(scores)
-    assert avg >= 0.8
+    # segments = segment(text)
+    # _, scores = simplify_segments(segments)
+    simplified, score, ratio = simplify(text)
+
+    print("Score:", score, "Ratio:", ratio)
+    print("Result:", simplified)
+
+    assert score >= 0.8
 
 def test_simplify_small():
     text = """

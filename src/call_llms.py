@@ -14,8 +14,7 @@ class LLMPool:
         self.workers = [LLMWorker(self.queue, self, self.lock) for _ in range(n_workers)]
         self.results = []
 
-    def run(self, data):
-
+    def run(self, data) -> list[tuple[dict[str, str], int | None]]:
         for worker in self.workers:
             worker.start()
 
@@ -43,14 +42,14 @@ class LLMWorker(Thread):
         self.lock = lock
         super(LLMWorker, self).__init__()
 
-    def run(self):
+    def run(self) -> None:
         while True:
             with self.lock:
-                data = self.queue.get()
+                data: dict = self.queue.get()
             if data is None:
                 break
             try:
-                result = self.process(data)
+                result: tuple[dict[str, str], float | None] = self.process(data)
                 with self.lock:
                     self.pool.collect(result)
                 print('Finished processing data:', data)
@@ -59,20 +58,18 @@ class LLMWorker(Thread):
                 with self.lock:
                     self.queue.put(data)
 
-    def process(self, data):
+    def process(self, data) -> tuple[dict[str, str], float | None]:
         print('Processing data:', data)
-        key = data.get('key', None)
-        # client = ollama.Client(host=data['host'])
+        key: int | None = data.get('key', None)
         prompt: Prompt = data['prompt']
-        # response = client.generate(model=data['model'], prompt=prompt, options=data['options'])
         response = prompt.execute(host=data['host'], model=data['model'], options=data['options'])
         return response, key
 
 # TODO: n_workers should come from .env
 # TODO: amount of prompts should come from .env
-def call_llms(data, n_workers=4, hosts=Config.OLLAMA_BASE_URL_POOL, sort=False):
-    pool = LLMPool(n_workers=n_workers, hosts=hosts)
-    results = pool.run(data)
+def call_llms(data, n_workers=4, hosts=Config.OLLAMA_BASE_URL_POOL, sort=False) -> list[tuple[dict[str, str], int | None]]:
+    pool: LLMPool = LLMPool(n_workers=n_workers, hosts=hosts)
+    results: list[tuple[dict[str, str], int | None]] = pool.run(data)
     if sort:
-        results = sorted(results, key=lambda x: x[1])
+        results = sorted(results, key=lambda x: x[1]) # type: ignore
     return results

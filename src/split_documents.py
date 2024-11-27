@@ -34,7 +34,7 @@ def split_documents(file_path, page_start=None, page_end=None, chunk_size=Config
     docs = text_splitter.split_documents(doc)
     return docs
 
-def split_text(text, chunk_size=Config.SPLITTER_CHUNK_SIZE, chunk_overlap=Config.SPLITTER_CHUNK_OVERLAP, split_by='character'):
+def split_text(text, chunk_size=Config.SPLITTER_CHUNK_SIZE, chunk_overlap=Config.SPLITTER_CHUNK_OVERLAP, split_by='character') -> list[Document]:
     doc = Document(page_content=text)
     if split_by == 'character':
         text_splitter = RecursiveCharacterTextSplitter(

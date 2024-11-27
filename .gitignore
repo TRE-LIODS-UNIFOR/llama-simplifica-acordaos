@@ -5,6 +5,8 @@
 *.md
 *.txt
 *.csv
+*.env
+.env
 
 !README.md
 !ideias.md

@@ -8,20 +8,40 @@ from split_documents import split_documents, split_text
 import torch
 from transformers import AutoModel, AutoTokenizer
 
+def pair_similar_chunks(candidate_chunks: list[str], reference_chunks: list[str]):
+    model = AutoModel.from_pretrained(Config.BERTSCORE_MODEL)
+    tokenizer = AutoTokenizer.from_pretrained(Config.BERTSCORE_MODEL)
 
-def get_similarity_score(summarized: str, original: str, method: str = 'cosine', model_name=Config.BERTSCORE_MODEL, model_num_layers=Config.BERTSCORE_MODEL_N_LAYERS) -> float:
+    candidate_encoded = tokenizer(candidate_chunks, return_tensors='pt', padding=True, truncation=True)
+    candidate_embeddings = model(candidate_encoded)
+
+    reference_encoded = tokenizer(reference_chunks, return_tensors='pt', padding=True, truncation=True)
+    reference_embeddings = model(reference_encoded)
+
+    alignment = []
+    cos = torch.nn.CosineSimilarity(dim=1)
+    for i, cand_emb in enumerate(candidate_embeddings):
+        # scores = util.pytorch_cos_sim(cand_emb, reference_embeddings)
+        scores = cos(cand_emb, reference_embeddings)
+        best_match_idx = scores.argmax().item()
+        alignment.append((i, best_match_idx))
+    return alignment
+
+def get_similarity_score(summarized: str, original: str, method: str = 'cosine', model_name=Config.BERTSCORE_MODEL, model_num_layers=Config.BERTSCORE_MODEL_N_LAYERS) -> float: # type: ignore
     if method == 'cosine':
         summarized_embeddings = embed(summarized, model_name)
         original_embeddings = embed(original, model_name)
-        similarity = cosine_similarity(summarized_embeddings, original_embeddings)
+        similarity = cosine_similarity(summarized_embeddings, original_embeddings) # type: ignore
         return similarity[0][0].item()
     elif method == 'bertscore':
+        chunks: list[str] = [chunk.page_content for chunk in split_text(summarized, 512, 32)]
+        print("Amount of chunks:", len(chunks))
         try:
-            bertscore = score([summarized], [original], lang='pt', model_type=model_name, num_layers=model_num_layers)[2].item()
-        except RuntimeError:
-            chunks = split_text(summarized, 512, 32)
-            scores = [score([chunk], [original], lang='pt', model_type=model_name, num_layers=model_num_layers)[2].item()[2] for chunk in chunks]
-            bertscore = sum(scores) / len(scores)
+            original_chunks: list[str] = [chunk.page_content for chunk in split_text(original, 512, 32)]
+            scores: list[float] = score(chunks, original_chunks, lang='pt', model_type=model_name, num_layers=model_num_layers)[2].tolist() # type: ignore
+        except AssertionError:
+            scores = [score([chunk], [original], lang='pt', model_type=model_name, num_layers=model_num_layers)[2].item() for chunk in chunks] # type: ignore
+        bertscore: float = sum(scores) / len(scores)
         return bertscore
 
 def embed(text: str, model_name=Config.BERTSCORE_MODEL) -> torch.Tensor:

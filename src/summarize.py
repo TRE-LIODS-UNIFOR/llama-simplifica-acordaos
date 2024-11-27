@@ -1,5 +1,6 @@
 from pathlib import Path
 from pprint import pprint
+import sys
 from call_llms import call_llms
 from config import Config
 from llms import get_llama
@@ -12,6 +13,7 @@ from semantic_similarity import get_similarity_score
 from stuff import most_similar, n_stuff
 from split_documents import split_text
 from langchain.prompts import PromptTemplate
+from langchain_core.documents import Document
 from postprocessing import postprocess
 
 
@@ -181,38 +183,50 @@ Texto refinado:
 Texto refinado sem redundâncias:"""
 
 
-def summarize_section(document_contents: str, prompt: str = None, base_url: str = None, verbose: bool = False, input_variables: dict[str, str] = None, ground_truth: Path = None, model_configuration: dict = None):
+def summarize_section(document_contents: str, prompt: str | None = None, verbose: bool = False, n_factor: int = 3) -> str: # tuple[str, float]:
+    if prompt is None:
+        raise ValueError("prompt must be provided")
+
     # Dividindo o texto em chunks
-    docs = split_text(document_contents)
+    docs: list[Document] = split_text(document_contents)
     # Produzindo o primeiro resumo, com MapReduce
-    resumos = [res['response'] for res in parallel_mapreduce(docs)]
-    resumo = rank_responses.by_similarity(resumos, document_contents)[0][0]
+    resumos: list[str] = [res['response'] for res in parallel_mapreduce(docs)]
+    resumo: str = rank_responses.by_similarity(resumos, document_contents, 'bertscore')[0][0]
     # resumo = postprocess(resumo, document_contents)
-    docs = split_text(resumo)
+    print("Tamaho do resumo em B:", sys.getsizeof(resumo))
+    docs: list[Document] = split_text(resumo)
 
     if verbose:
         print("Processamento inicial")
     # Processando o resumo inicial n vezes para obter a resposta mais similar
-    res, score = n_stuff(n=3, docs=docs, prompt=prompt)
+    res, score = n_stuff(n=n_factor, docs=docs, prompt=prompt) # type: ignore
+    if res is None:
+        raise ValueError("Nenhuma resposta obtida")
+    if score is None:
+        raise ValueError("Nenhuma pontuação obtida")
+
+    if verbose: print("Escolhendo a melhor resposta")
     pprint(res)
     pprint(score)
     # res, score = rank_responses.by_similarity(process, document_contents)[0]
-    best = most_similar(res, score)
+    response_contents = [response for response in res] # type: ignore
+    pprint(response_contents)
+    best, best_score = most_similar(response_contents, score)
     if verbose:
         print("Resposta mais similar:")
-        print(score)
+        print(best_score)
 
     if verbose:
         print("Pós-processamento")
         print("Detectando omissões")
     # Pós-processamento: detectando omissões, refinando o resumo
-    post = postprocess(best[0], document_contents)
+    post: str = postprocess(best, document_contents)
     if verbose:
         print(post)
 
     if verbose:
         print("Removendo redundâncias")
-    redundant_sentences_res = call_llms([
+    redundant_sentences_res: list[tuple[dict[str, str], int | None]] = call_llms([
         {
             "model": Config.OLLAMA_MODEL,
             "prompt": SimplePrompt(Prompts.SENTENCAS_REDUNDANTES.format(refined=post)),
@@ -223,36 +237,36 @@ def summarize_section(document_contents: str, prompt: str = None, base_url: str 
             }
         }
     ])
-    res = [res[0]['response'] for res in redundant_sentences_res]
-    res, score = rank_responses.by_similarity(res, post)
+    res: list[str] = [res[0]['response'] for res in redundant_sentences_res]
+    # best: str = rank_responses.by_similarity(res, post, 'bertscore')[0][0]
+    best: str = res[0]
     if verbose:
-        print(res)
+        print(best)
 
     if verbose:
         print("Refinando texto")
-    refine_res = call_llms([
+    refine_res: list[tuple[dict[str, str], int | None]] = call_llms([
         {
             "model": Config.OLLAMA_MODEL,
-            "prompt": SimplePrompt(Prompts.REFINAR_REDUNDANCIAS.format(redundancies=redundant_sentences_res.content, refined=post)),
+            "prompt": SimplePrompt(Prompts.REFINAR_REDUNDANCIAS.format(redundancies=best, refined=post)),
             "options": {
                 'temperature': 0.25,
                 'top_k': 5,
                 'top_p': 0.25,
             }
-        } for _ in range(3)
+        } for _ in range(n_factor)
     ])
-    res = [res[0]['response'] for res in refine_res]
-    res, score = rank_responses.by_similarity(res, post)
+    res: list[str] = [res[0]['response'] for res in refine_res]
+    best: str = rank_responses.by_similarity(res, post, 'bertscore')[0][0]
     if verbose:
-        print(res)
+        print(best)
 
-    return res, get_similarity_score(res, document_contents, method='bertscore', model_name='neuralmind/bert-large-portuguese-cased')
-    # return best
+    return best #, get_similarity_score(best, document_contents)
 
 def alternate_prompt(prompt):
     escaped = prompt.replace('{', '{{').replace('}', '}}')
 
-    llm = get_llama(config={'temperature': 0.1, 'top_p': 0.3, 'top_k': 5})
+    llm = get_llama()
     alternate = PromptTemplate.from_template("""Gere 3-5 versões do seguinte prompt, que contém instruções para resumir um acórdão, e um modelo de resposta. Ajuste as instruções, mas mantenha o modelo intacto.
 
     ```

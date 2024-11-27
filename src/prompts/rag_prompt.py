@@ -11,10 +11,17 @@ from prompts.prompts import Prompt
 
 
 class RAGPrompt(Prompt):
-    def __init__(self, prompt=None):
+    def __init__(self, prompt: str | None = None):
+        if prompt is None:
+            raise ValueError("Prompt must be provided")
         super().__init__(prompt=prompt)
 
-    def execute(self, model=None, host=None, options=None):
+    def execute(self, model: str, host=None, options=None):
+        if host is None:
+            host = Config.OLLAMA_BASE_URL
+        if options is None:
+            options = {}
+
         client = ChatOllama(
             base_url=host,
             model=model,
@@ -33,7 +40,8 @@ class RAGPrompt(Prompt):
         vectorstore = FAISS.from_documents(documents=options['documents'], embedding=embeddings)
         retriever = vectorstore.as_retriever()
 
-        print("Size of vectorstore in MB:", sys.getsizeof(vectorstore) / 1024 ** 2)
+        print("Size of vectorstore in B:", sys.getsizeof(vectorstore))
+        print("Size of documents in B:", sys.getsizeof(options['documents']))
 
         prompt_template = PromptTemplate.from_template(self.prompt)
 
@@ -54,4 +62,4 @@ class RAGPrompt(Prompt):
         print(answer)
 
         del(vectorstore)
-        return answer
+        return { 'response': answer }
