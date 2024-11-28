@@ -12,7 +12,7 @@ def main():
     res = requests.post(url, files={'doc': pdf}, data={'sections': sections})
     b = time.monotonic()
     duration_s = b - a
-    print(f"Time: {b - a} seconds")
+    print(f"Time: {(b - a) / 60:.2f} minutes")
     print(res.json())
 
 if __name__ == '__main__':
