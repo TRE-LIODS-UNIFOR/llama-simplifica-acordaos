@@ -9,6 +9,7 @@
 *.python-version
 .env
 *.pytest_cache
+*.ipynb_checkpoints
 
 !README.md
 !ideias.md
