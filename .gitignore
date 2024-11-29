@@ -8,6 +8,7 @@
 *.env
 *.python-version
 .env
+*.pytest_cache
 
 !README.md
 !ideias.md
