@@ -6,6 +6,7 @@
 *.txt
 *.csv
 *.env
+*.python-version
 .env
 
 !README.md
