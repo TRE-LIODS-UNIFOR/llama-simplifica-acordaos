@@ -72,7 +72,7 @@ def simplify(text) -> tuple[str, float, float]:
     segment = segment_sentences.segment(text)
     simplified, scores = simplify_segments(segment)
     simplified_paragraphs, score, ratio, overall_score, simplified_merged = build_from_simplified(simplified, scores, segment)
-    simplified = "\n".join(simplified_paragraphs)
+    simplified = "\n\n".join(simplified_paragraphs)
     return simplified, overall_score, ratio
 
 def list_complex(text):
