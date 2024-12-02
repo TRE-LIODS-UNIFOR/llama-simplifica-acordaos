@@ -34,7 +34,7 @@ class RAGPrompt(Prompt):
             callbacks=[MyLoggingCallbackHandler()] if options.get('verbose', False) else None
         )
         embeddings = OllamaEmbeddings(
-            base_url=host,
+            base_url=options.get('embeddings_base_url', Config.OLLAMA_EMBEDDINGS_BASE_URL),
             model=options.get('embeddings_model', 'nomic-embed-text')
         )
         vectorstore = FAISS.from_documents(documents=options['documents'], embedding=embeddings)
