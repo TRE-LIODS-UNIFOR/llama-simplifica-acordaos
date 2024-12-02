@@ -183,7 +183,7 @@ Texto refinado:
 Texto refinado sem redundâncias:"""
 
 
-def summarize_section(document_contents: str, prompt: str | None = None, verbose: bool = False, n_factor: int = 3) -> str: # tuple[str, float]:
+def summarize_section(document_contents: str, prompt: str | None = None, verbose: bool = False, n_factor: int = 3, skip_postprocess: bool = False) -> str: # tuple[str, float]:
     if prompt is None:
         raise ValueError("prompt must be provided")
 
@@ -215,6 +215,9 @@ def summarize_section(document_contents: str, prompt: str | None = None, verbose
     if verbose:
         print("Resposta mais similar:")
         print(best_score)
+
+    if skip_postprocess:
+        return best
 
     if verbose:
         print("Pós-processamento")
@@ -298,33 +301,5 @@ if __name__ == "__main__":
         doc,
         prompt,
         verbose=True,
-        from_file=False,
-        doc=resumo,
     )
     print(relatorio, '\n\n\n')
-
-    # prompt = """Este é um resumo de um acórdão eleitoral. Refine o resumo, incluindo as seguintes informações omitidas no resumo original, mantendo sua estrutura original.
-
-    # Resumo original:
-    # {original}
-
-    # Informações omitidas:
-    # {context}
-
-    # Resumo refinado:"""
-    # relatorio = summarize_section(doc_path, start_page, end_page, prompt, verbose=True, from_file=False, doc=resumo, input_variables={'original': resumo})
-    # print(relatorio)
-
-    # print('Voto')
-    # start_page = 5
-    # end_page = 11
-    # prompt = Prompts.VOTO
-    # voto = summarize_section(doc_path, start_page, end_page, prompt, verbose=True)
-    # print(voto, '\n\n\n')
-
-    # print('Decisão')
-    # start_page = 11
-    # end_page = 12
-    # prompt = Prompts.DECISAO
-    # decisao = summarize_section(doc_path, start_page, end_page, prompt, verbose=True)
-    # print(decisao)

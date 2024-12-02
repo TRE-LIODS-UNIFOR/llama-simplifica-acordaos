@@ -65,9 +65,9 @@ class LLMWorker(Thread):
         response = prompt.execute(host=data['host'], model=data['model'], options=data['options'])
         return response, key
 
-# TODO: n_workers should come from .env
 # TODO: amount of prompts should come from .env
 def call_llms(data, n_workers=4, hosts=Config.OLLAMA_BASE_URL_POOL, sort=False) -> list[tuple[dict[str, str], int | None]]:
+    n_workers = min(n_workers, len(hosts))
     pool: LLMPool = LLMPool(n_workers=n_workers, hosts=hosts)
     results: list[tuple[dict[str, str], int | None]] = pool.run(data)
     if sort:

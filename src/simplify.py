@@ -58,9 +58,7 @@ def build_from_simplified(segments, scores, original, similarity_threshold=0.8) 
 
     mask = paragraph_mask(segments)
     simplified_merged = join_paragraphs(new_segments, mask)
-    # print("Simplified merged:", simplified_merged)
     original_merged = join_paragraphs(original, mask)
-    # print("Original merged:", simplified_merged)
 
     scores = []
     for simple, sentence in zip(simplified_merged, original_merged):
@@ -74,7 +72,7 @@ def simplify(text) -> tuple[str, float, float]:
     segment = segment_sentences.segment(text)
     simplified, scores = simplify_segments(segment)
     simplified_paragraphs, score, ratio, overall_score, simplified_merged = build_from_simplified(simplified, scores, segment)
-    simplified = "".join(simplified_paragraphs)
+    simplified = "\n".join(simplified_paragraphs)
     return simplified, overall_score, ratio
 
 def list_complex(text):

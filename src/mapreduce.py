@@ -141,14 +141,14 @@ def parallel_mapreduce(docs: list[Document]):
                 "model": Config.OLLAMA_MODEL,
                 "prompt": SimplePrompt(Prompts.MAP.format(context=doc.page_content)),
                 "options": {
-                    'temperature': 0.0,
-                    'top_k': 2,
-                    'top_p': 0.05,
+                    'temperature': 0.25,
+                    'top_k': 5,
+                    'top_p': 0.25,
                 },
                 "key": i
             } for i, doc in enumerate(docs)
         ],
-        n_workers=4,
+        n_workers=len(Config.OLLAMA_BASE_URL_POOL),
         sort=True
     )
     summary = "\n".join([result[0]['response'] for result in map_results])
@@ -167,7 +167,7 @@ def parallel_mapreduce(docs: list[Document]):
                 "key": i
             } for i in range(4)
         ],
-        n_workers=4,
+        n_workers=len(Config.OLLAMA_BASE_URL_POOL),
         sort=True
     )
     return [result[0] for result in reduce_results]

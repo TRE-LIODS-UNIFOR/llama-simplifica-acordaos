@@ -3,7 +3,6 @@ from langchain_ollama import ChatOllama
 llm = ChatOllama(
     base_url='http://10.10.0.99:11434/',
     model='llama3.2',
-    context_size=1024
 )
 
 print(llm.get_num_tokens("""Na peça contestatória (Id 19574900), o Representado, ora recorrente, alegou que as condutas no lançamento

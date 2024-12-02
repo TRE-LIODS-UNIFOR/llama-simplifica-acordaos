@@ -1,64 +1,48 @@
-from langchain.prompts import PromptTemplate
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_community.vectorstores import FAISS
-from langchain_ollama import OllamaEmbeddings
-
-from llms import get_llama
+from call_llms import call_llms
+from config import Config
+from langchain_core.documents import Document
 from ner import NER
+from prompts.rag_prompt import RAGPrompt
 from segment_sentences import segment
 from split_documents import split_documents, split_text
 from stuff import stuff
+from token_count import get_token_count
 
-def postprocess(processed_result: str, original: str, model_configurations: dict | None = None) -> str:
+def postprocess(processed_result: str, original: str) -> str:
     """
     Encontra as entidades omitidas na versão resumida, e produz uma nova versão mais completa.
     """
-    ner = NER()
+    ner: NER = NER()
 
-    pros_chunks = split_text(processed_result, split_by='character', chunk_size=512, chunk_overlap=32)
-    orig_chunks = split_text(original, split_by='character', chunk_size=512, chunk_overlap=32)
+    pros_chunks: list[Document] = split_text(processed_result, split_by='character', chunk_size=512, chunk_overlap=32)
+    orig_chunks: list[Document] = split_text(original, split_by='character', chunk_size=512, chunk_overlap=32)
 
     pros_topics = ner.get_topics(pros_chunks)
     orig_topics = ner.get_topics(orig_chunks)
 
-    missing_topics = [topic for topic in orig_topics if topic not in pros_topics]
+    missing_topics: list[str] = [topic for topic in orig_topics if topic not in pros_topics]
+    missing_topics_text: str = '\n* '.join(missing_topics)
 
-    refine_prompt = PromptTemplate.from_template(
-        """
-        Com base no seguinte resumo de um acórdão do TRE e os trechos do contexto, refine o resumo, incluindo as seguintes informações omitidas no resumo original, mantendo sua estrutura original:
+    n_tokens: int = get_token_count(processed_result + missing_topics_text)
 
-        Resumo original:
-        {original}
+    if n_tokens > Config.OLLAMA_CONTEXT_SIZE:
+        n_missing_topics = len(missing_topics)
+        mid = n_missing_topics // 2
+        missing_tokens_list = ['\n* '.join(missing_topics[:mid]), '\n* '.join(missing_topics[mid:])]
+    else:
+        missing_tokens_list = ['\n* '.join(missing_topics)]
 
-        Informações omitidas:
-        {missing}
+    result: list[tuple[dict[str, str], int | None]] = call_llms([
+        {
+            'prompt': RAGPrompt(prompt="Com base no seguinte resumo de um acórdão do TRE e os trechos do contexto, refine o resumo, incluindo as seguintes informações omitidas no resumo original, mantendo sua estrutura original:\n\nResumo original:\n{original}\n\nInformações omitidas:\n{missing}\n\nTrechos do contexto:\n{context}\n\nResumo refinado:"),
+            'options': {
+                'original': processed_result,
+                'missing': missing_tokens_list[i],
+            }
+        } for i in range(len(missing_tokens_list))
+    ])
 
-        Trechos do contexto:
-        {context}
-
-        Resumo refinado:
-        """
-    )
-
-    embeddings_model = OllamaEmbeddings(
-        model='nomic-embed-text',
-        base_url='http://10.10.0.99:11434',
-    )
-    original_document = split_text(original)
-    vectorstore = FAISS.from_documents(documents=original_document, embedding=embeddings_model)
-    retriever = vectorstore.as_retriever()
-
-    llm = get_llama(model_configuration=model_configurations)
-
-    stuff_chain = create_stuff_documents_chain(llm, refine_prompt)
-    retrieval_chain = create_retrieval_chain(retriever, stuff_chain)
-
-    return retrieval_chain.invoke({
-        'original': processed_result,
-        'missing': missing_topics,
-        'input': 'Comece.',
-    })['answer']
+    return result[0][0]['response']
 
 def fact_check(processed_result: str | None = None, original_document_path: str | None = None, page_start: int | None = None, page_end: int | None = None, host: int = 0, base_url: int | None = None, model_configurations: dict | None = None) -> str:
     """

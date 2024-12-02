@@ -2,6 +2,7 @@ from io import BytesIO
 from flask import Flask, jsonify, request
 from werkzeug.datastructures import FileStorage
 
+from config import Config
 import preprocess
 from simplify import simplify
 from summarize import Prompts, summarize_section
@@ -16,19 +17,39 @@ def summarize(doc: FileStorage, sections: list[int] | None = None) -> str:
     decisao = preprocess.partition(pdf, sections[3], sections[4])
     print("\n\nSUMMARIZING\n\n")
     summaries: dict[str, str] = {
-        "relatorio": summarize_section(relatorio, prompt=Prompts.RELATORIO, verbose=True, n_factor=2),
-        "voto": summarize_section(voto, prompt=Prompts.VOTO, verbose=True, n_factor=2),
-        "decisao": summarize_section(decisao, prompt=Prompts.DECISAO, verbose=True, n_factor=2),
+        "relatorio": summarize_section(relatorio, prompt=Prompts.RELATORIO, verbose=True, n_factor=2, skip_postprocess=Config.SKIP_POSTPROCESS),
+        "voto": summarize_section(voto, prompt=Prompts.VOTO, verbose=True, n_factor=2, skip_postprocess=Config.SKIP_POSTPROCESS),
+        "decisao": summarize_section(decisao, prompt=Prompts.DECISAO, verbose=True, n_factor=2, skip_postprocess=Config.SKIP_POSTPROCESS),
     }
 
     print("\n\nSIMPLIFYING\n\n")
 
     simplified = {
-        "Relatório": simplify(summaries["relatorio"]),
-        "Voto": simplify(summaries["voto"]),
-        "Decisão": simplify(summaries["decisao"]),
+        "relatorio": simplify(summaries["relatorio"]),
+        "voto": simplify(summaries["voto"]),
+        "decisao": simplify(summaries["decisao"]),
     }
-    result = "\n\n".join([f"{k.capitalize()}\n\n{v[0]}" for k, v in simplified.items()])
+    result = f"""
+# Relatório
+
+{simplified['relatorio'][0]}
+
+# Voto
+
+{simplified['voto'][0]}
+
+# Decisão
+
+{simplified['decisao'][0]}
+
+---
+
+Nota de simplificação:
+
+* Relatório: {simplified['relatorio'][1]}, {simplified['relatorio'][2]:.2f}% simplificado
+* Voto: {simplified['voto'][1]}, {simplified['voto'][2]:.2f}% simplificado
+* Decisão: {simplified['decisao'][1]}, {simplified['decisao'][2]:.2f}% simplificado
+"""
     return result
 
 app = Flask(__name__)
