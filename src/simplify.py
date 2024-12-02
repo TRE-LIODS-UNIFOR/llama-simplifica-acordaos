@@ -68,7 +68,7 @@ def build_from_simplified(segments, scores, original, similarity_threshold=0.8) 
 
     return new_segments, score, ratio, overall_score, simplified_merged
 
-def simplify(text) -> tuple[str, float, float]:
+def simplify(text: str) -> tuple[str, float, float]:
     segment = segment_sentences.segment(text)
     simplified, scores = simplify_segments(segment)
     simplified_paragraphs, score, ratio, overall_score, simplified_merged = build_from_simplified(simplified, scores, segment)

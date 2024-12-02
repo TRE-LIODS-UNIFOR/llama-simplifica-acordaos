@@ -78,4 +78,5 @@ class NER:
             subwords = self.ner(doc.page_content)
             words = self.tokens_to_words(subwords)
             topics.extend(self.words_to_topics(words))
+        topics = [topic['word'] for topic in topics]
         return topics
