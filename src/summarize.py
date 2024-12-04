@@ -19,149 +19,148 @@ from postprocessing import postprocess
 
 class Prompts:
     CABECALHO = """
-    Extraia do texto encontrado no contexto somente as seguintes informações:
+Extraia do texto encontrado no contexto somente as seguintes informações:
 
-    -   Número do processo (ou número do recurso eleitoral)
-    -   Origem
-    -   Relator
-    -   Recorrente
-    -   Advogados(as)
-    -   Recorrido
-    -   Assunto
+-   Número do processo (ou número do recurso eleitoral)
+-   Origem
+-   Relator
+-   Recorrente
+-   Advogados(as)
+-   Recorrido
+-   Assunto
 
-    Formate sua resposta como uma lista, assim:
+Formate sua resposta como uma lista, assim:
 
-    -   Número do processo: Número do processo
-    -   Origem: Origem
-    -   Relator: Relator
-    -   Recorrente: Recorrente
-    -   Advogados: Advogados(as)
-    -   Recorrido: Recorrido
-    -   Assunto: Assunto, em 2 ou 3 palavras
+-   Número do processo: Número do processo
+-   Origem: Origem
+-   Relator: Relator
+-   Recorrente: Recorrente
+-   Advogados: Advogados(as)
+-   Recorrido: Recorrido
+-   Assunto: Assunto, em 2 ou 3 palavras
 
-    ### Exemplo de entrada:
+### Exemplo de entrada:
 
-    ```
-    PODER JUDICIÁRIO
-    TRIBUNAL REGIONAL ELEITORAL DO CEARÁ
+```
+PODER JUDICIÁRIO
+TRIBUNAL REGIONAL ELEITORAL DO CEARÁ
 
-    RECURSO ELEITORAL N. 0600012-49.2024.6.06.0033
-    ORIGEM: CANINDÉ/CE
-    RELATOR: DESEMBARGADOR ELEITORAL DANIEL CARVALHO CARNEIRO
-    RECORRENTE: ANTÔNIO ILOMAR VASCONCELOS CRUZ
-    ADVOGADOS(AS): FRANCISCO JARDEL RODRIGUES DE SOUSA - OAB CE32787-A,
-    LIDENIRA CAVALCANTE MENDONÇA VIEIRA - OAB CE0016731
-    RECORRIDO: MINISTÉRIO PÚBLICO ELEITORAL
-    ```
+RECURSO ELEITORAL N. 0600012-49.2024.6.06.0033
+ORIGEM: CANINDÉ/CE
+RELATOR: DESEMBARGADOR ELEITORAL DANIEL CARVALHO CARNEIRO
+RECORRENTE: ANTÔNIO ILOMAR VASCONCELOS CRUZ
+ADVOGADOS(AS): FRANCISCO JARDEL RODRIGUES DE SOUSA - OAB CE32787-A,
+LIDENIRA CAVALCANTE MENDONÇA VIEIRA - OAB CE0016731
+RECORRIDO: MINISTÉRIO PÚBLICO ELEITORAL
+```
 
-    ### Exemplo de saída:
+### Exemplo de saída:
 
-    -   Número do processo: 0600012-49.2024.6.06.0033
-    -   ORIGEM: CANINDÉ/CE
-    -   RELATOR: DESEMBARGADOR ELEITORAL DANIEL CARVALHO CARNEIRO
-    -   RECORRENTE: ANTÔNIO ILOMAR VASCONCELOS CRUZ
-    -   ADVOGADOS(AS): FRANCISCO JARDEL RODRIGUES DE SOUSA - OAB CE32787-A, LIDENIRA CAVALCANTE MENDONÇA VIEIRA - OAB CE0016731
-    -   RECORRIDO: MINISTÉRIO PÚBLICO ELEITORAL
+-   Número do processo: 0600012-49.2024.6.06.0033
+-   ORIGEM: CANINDÉ/CE
+-   RELATOR: DESEMBARGADOR ELEITORAL DANIEL CARVALHO CARNEIRO
+-   RECORRENTE: ANTÔNIO ILOMAR VASCONCELOS CRUZ
+-   ADVOGADOS(AS): FRANCISCO JARDEL RODRIGUES DE SOUSA - OAB CE32787-A, LIDENIRA CAVALCANTE MENDONÇA VIEIRA - OAB CE0016731
+-   RECORRIDO: MINISTÉRIO PÚBLICO ELEITORAL
 
-    ### Contexto
+### Contexto
 
-    ```
-    {context}
-    ```
+```
+{context}
+```
 
-    ### Fim do contexto
+### Fim do contexto
 
-    ### Resposta
-    """
+### Resposta
+"""
     RELATORIO = """
-    Você é um especialista jurídico com foco em simplificação de textos legais. Sua tarefa é analisar acórdãos judiciais e gerar um resumo simplificado, acessível ao público geral, sem perder a precisão jurídica. O formato do documento simplificado deve ser claro, objetivo e seguir uma estrutura pré-definida.
-    Preencha o acórdão simplificado utilizando as informações fornecidas em cada bloco. Siga o formato abaixo para garantir que todos os elementos necessários sejam cobertos e organizados conforme a estrutura do acórdão:
-    Responda com o texto simplificado do acórdão, e nada mais.
+Você é um especialista jurídico com foco em simplificação de textos legais. Sua tarefa é analisar acórdãos judiciais e gerar um resumo simplificado, acessível ao público geral, sem perder a precisão jurídica. O formato do documento simplificado deve ser claro, objetivo e seguir uma estrutura pré-definida.
+Preencha o modelo de acórdão simplificado utilizando de acordo com as instruções contidas em cada campo. Para cada campo, resuma de forma objetiva os fatos relevantes apresentados no acórdão, destacando em 3 parágrafos, com no máximo 3 linhas cada um, e, quando for o caso, caixa de texto explicativa, tudo em texto contínuo.
+Responda com o modelo preenchido, e nada mais.
 
-    ### FORMATO
-    ```
-    **Relatório (O Caso)**: Resuma de forma objetiva os fatos apresentados no acórdão, destacando em 3 parágrafos, com no máximo 3 linhas cada um, e, quando for o caso, caixa de texto explicativa, tudo em texto contínuo.
+### FORMATO
+```
+**Relatório (O Caso)**:
 
-    Informações iniciais do processo analisado pelo juiz: indique o que o autor do recurso pediu e o que o réu alegou para se defender.
-    Decisão do juiz no processo inicial: Apresente a decisão do juiz no processo inicial, descrevendo o que o juiz decidiu e as justificativas legais usadas.
-    Artigos de lei e fundamentos jurídicos relevantes: cite artigos de lei e fundamentos jurídicos relevantes..
-    Quem recorreu e o que alegou: indique quem recorreu à decisão e o que alegou para recorrer.
+Informações iniciais do processo analisado pelo juiz: indique o que o autor do recurso pediu e o que o réu alegou para se defender.
+Decisão do juiz no processo inicial: Apresente a decisão do juiz no processo inicial, descrevendo o que o juiz decidiu e as justificativas legais usadas.
+Artigos de lei e fundamentos jurídicos relevantes: cite artigos de lei e fundamentos jurídicos relevantes..
+Quem recorreu e o que alegou: indique quem recorreu à decisão e o que alegou para recorrer.
 
-    Caixa de texto explicativa com termos jurídicos relevantes para a compreensão do assunto principal: forneça definições e explicações simples de termos, expressões ou assuntos jurídicos relevantes para a compreensão do assunto principal. Exemplo: “Propaganda antecipada negativa: A propaganda eleitoral antecipada negativa acontece quando, antes de 16 de agosto do ano eleitoral (art. 36 da Lei nº 9.504/1997), alguém faz críticas para prejudicar adversários políticos e influenciar eleitores. Essa prática é proibida e pode resultar em multa”.
-    ```
-    ### FIM DO FORMATO
+Caixa de texto explicativa com termos jurídicos relevantes para a compreensão do assunto principal: forneça definições e explicações simples de termos, expressões ou assuntos jurídicos relevantes para a compreensão do assunto principal. Exemplo: “Propaganda antecipada negativa: A propaganda eleitoral antecipada negativa acontece quando, antes de 16 de agosto do ano eleitoral (art. 36 da Lei nº 9.504/1997), alguém faz críticas para prejudicar adversários políticos e influenciar eleitores. Essa prática é proibida e pode resultar em multa”.
+```
+### FIM DO FORMATO
 
-    ### CONTEXTO
-    ```
-    {context}
-    ```
-    ### FIM DO CONTEXTO
-    """
+### CONTEXTO
+```
+{context}
+```
+### FIM DO CONTEXTO
+"""
     VOTO = """
-    Você é um especialista jurídico com foco em simplificação de textos legais. Sua tarefa é analisar acórdãos judiciais e gerar um resumo simplificado, acessível ao público geral, sem perder a precisão jurídica. O formato do documento simplificado deve ser claro, objetivo e seguir uma estrutura pré-definida.
-    Preencha o acórdão simplificado utilizando as informações fornecidas em cada bloco. Siga o formato abaixo para garantir que todos os elementos necessários sejam cobertos e organizados conforme a estrutura do acórdão:
-    Responda com o texto simplificado do acórdão, e nada mais.
+Você é um especialista jurídico com foco em simplificação de textos legais. Sua tarefa é analisar acórdãos judiciais e gerar um resumo simplificado, acessível ao público geral, sem perder a precisão jurídica. O formato do documento simplificado deve ser claro, objetivo e seguir uma estrutura pré-definida.
+Preencha o modelo de acórdão simplificado utilizando de acordo com as instruções contidas em cada campo. Para cada campo, resuma de forma objetiva os fatos relevantes apresentados no acórdão, destacando em 3 parágrafos, com no máximo 3 linhas cada um, e, quando for o caso, caixa de texto explicativa, tudo em texto contínuo.
+Responda com o modelo preenchido, e nada mais.
 
-    ### FORMATO
-    ```
-    **Voto (Argumentação/ Motivação/ Fundamentação)**: Apresente as razões jurídicas que embasaram a decisão do Tribunal, destacando, em 2 parágrafos, com no máximo 3 linhas, de texto contínuo.
+### FORMATO
+```
+**Voto (Argumentação/ Motivação/ Fundamentação)**: Apresente as razões jurídicas que embasaram a decisão do Tribunal, destacando, em 2 parágrafos, com no máximo 3 linhas, de texto contínuo.
 
-    Princípios legais aplicados: quais foram os princípios legais aplicados.
-    Interpretação do Tribunal: A interpretação dada à legislação.
-    Argumentos relevantes: Argumentos relevantes usados na motivação.**
+Princípios legais aplicados: quais foram os princípios legais aplicados.
+Interpretação do Tribunal: A interpretação dada à legislação.
+Argumentos relevantes: Argumentos relevantes usados na motivação.**
 
-    (Use uma linguagem simples e evite jargões técnicos sempre que possível)
+(Use uma linguagem simples e evite jargões técnicos sempre que possível)
 
-    Fundamentação de Fato e de Direito: Explique os fatos relevantes para a decisão e apresente a fundamentação jurídica, citando artigos de lei, precedentes jurisprudenciais que embasam a decisão do Tribunal.
-    Conclusão e Decisão: Conclusão do Voto.
-    ```
-    ### FIM DO FORMATO
+Fundamentação de Fato e de Direito: Explique os fatos relevantes para a decisão e apresente a fundamentação jurídica, citando artigos de lei, precedentes jurisprudenciais que embasam a decisão do Tribunal.
+Conclusão e Decisão: Conclusão do Voto.
+```
+### FIM DO FORMATO
 
-    ### CONTEXTO
-    ```
-    {context}
-    ```
-    ### FIM DO CONTEXTO
-    """
+### CONTEXTO
+```
+{context}
+```
+### FIM DO CONTEXTO
+"""
     DECISAO = """
-    Você é um especialista jurídico com foco em simplificação de textos legais. Sua tarefa é analisar acórdãos judiciais e gerar um resumo simplificado, acessível ao público geral, sem perder a precisão jurídica. O formato do documento simplificado deve ser claro, objetivo e seguir uma estrutura pré-definida.
-    Preencha o acórdão simplificado utilizando as informações fornecidas em cada bloco. Siga o formato abaixo para garantir que todos os elementos necessários sejam cobertos e organizados conforme a estrutura do acórdão:
+Você é um especialista jurídico com foco em simplificação de textos legais. Sua tarefa é analisar acórdãos judiciais e gerar um resumo simplificado, acessível ao público geral, sem perder a precisão jurídica. O formato do documento simplificado deve ser claro, objetivo e seguir uma estrutura pré-definida.
+Preencha o modelo de acórdão simplificado utilizando de acordo com as instruções contidas em cada campo.
+Responda com o modelo preenchido, e nada mais.
 
-    Contexto:
-    ```
-    {context}
-    ```
-    Fim do contexto
+Contexto:
+```
+{context}
+```
+Fim do contexto
 
-    Formato:
-    ```
-    ### **Resultado do Julgamento (Dispositivo):**
+Formato:
+```
+### **Resultado do Julgamento (Dispositivo):**
 
-    Resultado final da decisão: Informe de maneira direta e clara o resultado final da decisão, incluindo em 2 parágrafos, com no máximo 3 linhas em cada um, em texto contínuo.
-    Resultado do Julgamento: Aqui, deverá ser informado o resultado final da decisão, se a decisão foi unânime ou não, se manteve a decisão original ou a modificou. Exemplo: “O Tribunal Regional Eleitoral do Ceará, por unanimidade, decidiu manter a decisão original, entendendo que...".
+Resultado final da decisão: Informe de maneira direta e clara o resultado final da decisão, incluindo em 2 parágrafos, com no máximo 3 linhas em cada um, em texto contínuo.
+Resultado do Julgamento: Aqui, deverá ser informado o resultado final da decisão, se a decisão foi unânime ou não, se manteve a decisão original ou a modificou. Exemplo: “O Tribunal Regional Eleitoral do Ceará, por unanimidade, decidiu manter a decisão original, entendendo que...".
 
-    Decisão: de acordo com o resultado da decisão, uma entre: "Recurso Negado", "Recurso Aceito" ou "Recurso Parcialmente Aceito".
-    ```
-    Fim do formato
+Decisão: de acordo com o resultado da decisão, uma entre: "Recurso Negado", "Recurso Aceito" ou "Recurso Parcialmente Aceito".
+```
+Fim do formato
 
-    Resumo simplificado:
-    """
-
+Resumo simplificado:
+"""
     TOPICOS_OMITIDOS = """
-    Com base no seguinte resumo de um acórdão do TRE e os trechos do contexto, refine o resumo, incluindo as seguintes informações omitidas no resumo original, mantendo sua estrutura original:
+Com base no seguinte resumo de um acórdão do TRE e os trechos do contexto, refine o resumo, incluindo as seguintes informações omitidas no resumo original, mantendo sua estrutura original:
 
-    Resumo original:
-    {original}
+Resumo original:
+{original}
 
-    Informações omitidas:
-    {missing}
+Informações omitidas:
+{missing}
 
-    Trechos do contexto:
-    {context}
+Trechos do contexto:
+{context}
 
-    Resumo refinado:
-    """
-
+Resumo refinado:
+"""
     SENTENCAS_REDUNDANTES = """
 Encontre sentenças redundantes no texto refinado e liste-as.
 
@@ -183,7 +182,7 @@ Texto refinado:
 Texto refinado sem redundâncias:"""
 
 
-def summarize_section(document_contents: str, prompt: str | None = None, verbose: bool = False, n_factor: int = 3, skip_postprocess: bool = False) -> str: # tuple[str, float]:
+def summarize_section(document_contents: str, prompt: str | None = None, verbose: bool = False, n_factor: int = Config.N_FACTOR, skip_postprocess: bool = False) -> str: # tuple[str, float]:
     if prompt is None:
         raise ValueError("prompt must be provided")
 
@@ -265,41 +264,3 @@ def summarize_section(document_contents: str, prompt: str | None = None, verbose
         print(best)
 
     return best #, get_similarity_score(best, document_contents)
-
-def alternate_prompt(prompt):
-    escaped = prompt.replace('{', '{{').replace('}', '}}')
-
-    llm = get_llama()
-    alternate = PromptTemplate.from_template("""Gere 3-5 versões do seguinte prompt, que contém instruções para resumir um acórdão, e um modelo de resposta. Ajuste as instruções, mas mantenha o modelo intacto.
-
-    ```
-    {prompt}
-    ```
-
-    Versão alternativa:""")
-    chain = alternate | llm
-    res = chain.invoke({'prompt': escaped})
-    return res.content
-
-
-if __name__ == "__main__":
-    # print(alternate_prompt(Prompts.RELATORIO))
-
-    with open("documentos/acordaos/0600012-49_REl_28052024_1.pdf", "rb") as f:
-        doc = f.read()
-    document_contents = preprocess.extract_text_from_pdf(doc)
-    relatorio_contents = preprocess.partition(doc, 2, 5)
-
-    print('Relatório')
-    print('Map Reduce')
-    doc = split_text(relatorio_contents)
-    resumo = mapreduce(doc)
-    resumo = postprocess(resumo, relatorio_contents)
-
-    prompt = Prompts.RELATORIO
-    relatorio = summarize_section(
-        doc,
-        prompt,
-        verbose=True,
-    )
-    print(relatorio, '\n\n\n')

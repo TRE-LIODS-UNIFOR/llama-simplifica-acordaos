@@ -152,7 +152,6 @@ def parallel_mapreduce(docs: list[Document]):
         sort=True
     )
     summary = "\n".join([result[0]['response'] for result in map_results])
-    # del(map_results)
 
     reduce_results = call_llms(
         [
@@ -160,12 +159,12 @@ def parallel_mapreduce(docs: list[Document]):
                 "model": Config.OLLAMA_MODEL,
                 "prompt": SimplePrompt(Prompts.REDUCE.format(context=summary)),
                 "options": {
-                    'temperature': 0.25,
-                    'top_k': 5,
-                    'top_p': 0.25,
+                    'temperature': 0.25 + 0.1 * i,
+                    'top_k': 5 + i,
+                    'top_p': 0.25 + 0.1 * i,
                 },
                 "key": i
-            } for i in range(4)
+            } for i in range(Config.N_FACTOR)
         ],
         n_workers=len(Config.OLLAMA_BASE_URL_POOL),
         sort=True

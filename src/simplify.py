@@ -20,7 +20,7 @@ logging.set_verbosity_error()
 from semantic_similarity import get_similarity_score
 
 def simplify_segments(segments):
-    options = {'temperature': 0.0, 'top_k': 2, 'top_p': 0.05}
+    options = {'temperature': 0.25, 'top_k': 5, 'top_p': 0.25}
     responses = call_llms([
         {
             'model': 'llama3.1:8b',
@@ -72,7 +72,7 @@ def simplify(text: str) -> tuple[str, float, float]:
     segment = segment_sentences.segment(text)
     simplified, scores = simplify_segments(segment)
     simplified_paragraphs, score, ratio, overall_score, simplified_merged = build_from_simplified(simplified, scores, segment)
-    simplified = "\n\n".join(simplified_paragraphs)
+    simplified = "\n".join(simplified_paragraphs)
     return simplified, overall_score, ratio
 
 def list_complex(text):
@@ -171,8 +171,7 @@ Nova versão:"""
             'options': {'temperature': 0.0 + i / 10, 'top_p': 0.1 + i/10, 'top_k': 10 + i},
             'key': i
         } for i in range(1, 4)
-    ],
-    )
+    ])
     versions = [r[0]['response'] for r in res]
     scores = [get_similarity_score(s, text, method='bertscore') for s in versions]
     return versions, scores

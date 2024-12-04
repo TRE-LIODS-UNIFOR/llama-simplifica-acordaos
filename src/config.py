@@ -30,3 +30,5 @@ class Config:
 
     BERTSCORE_MODEL = environ.get('BERTSCORE_MODEL', 'bert-base-multilingual-cased')
     BERTSCORE_MODEL_N_LAYERS = int(environ.get('BERTSCORE_MODEL_N_LAYERS', '12'))
+
+    N_FACTOR = int(environ.get('N_FACTOR', '2'))

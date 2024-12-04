@@ -17,9 +17,9 @@ def summarize(doc: FileStorage, sections: list[int] | None = None) -> str:
     decisao = preprocess.partition(pdf, sections[3], sections[4])
     print("\n\nSUMMARIZING\n\n")
     summaries: dict[str, str] = {
-        "relatorio": summarize_section(relatorio, prompt=Prompts.RELATORIO, verbose=True, n_factor=2, skip_postprocess=Config.SKIP_POSTPROCESS),
-        "voto": summarize_section(voto, prompt=Prompts.VOTO, verbose=True, n_factor=2, skip_postprocess=Config.SKIP_POSTPROCESS),
-        "decisao": summarize_section(decisao, prompt=Prompts.DECISAO, verbose=True, n_factor=2, skip_postprocess=Config.SKIP_POSTPROCESS),
+        "relatorio": summarize_section(relatorio, prompt=Prompts.RELATORIO, verbose=True, skip_postprocess=Config.SKIP_POSTPROCESS),
+        "voto": summarize_section(voto, prompt=Prompts.VOTO, verbose=True, skip_postprocess=Config.SKIP_POSTPROCESS),
+        "decisao": summarize_section(decisao, prompt=Prompts.DECISAO, verbose=True, skip_postprocess=Config.SKIP_POSTPROCESS),
     }
 
     print("\n\nSIMPLIFYING\n\n")

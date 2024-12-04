@@ -1,6 +1,8 @@
 from queue import Queue
 from threading import Lock, Thread
 
+from ollama import ResponseError
+
 from config import Config
 from prompts.prompts import Prompt
 
@@ -48,13 +50,18 @@ class LLMWorker(Thread):
                 data: dict = self.queue.get()
             if data is None:
                 break
+            data['retry_count'] = data.get('retry_count', 0)
             try:
                 result: tuple[dict[str, str], float | None] = self.process(data)
                 with self.lock:
                     self.pool.collect(result)
                 print('Finished processing data:', data)
-            except Exception as e:
-                print('Error processing data:', data, "Error:", e)
+            except ResponseError as e:
+                print('Error processing data:', data, "Error:", e.error)
+                data['retry_count'] = data.get('retry_count', 0) + 1
+                if data['retry_count'] < len(self.pool.hosts):
+                    data['host'] = self.pool.hosts[data['retry_count']]
+                    print('Retrying data:', data)
                 with self.lock:
                     self.queue.put(data)
 

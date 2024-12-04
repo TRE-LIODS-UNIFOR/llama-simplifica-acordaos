@@ -48,8 +48,42 @@ def test_call_llms_with_keys():
         n_workers=2
     )
 
-    sorted_results = sorted(results, key=lambda x: x[1])
+    sorted_results = sorted(results, key=lambda x: x[1]) # type: ignore
 
     assert len(results) == 2
     assert sorted_results[0][1] == 0
     assert sorted_results[1][1] == 1
+
+def test_call_llms_with_retry_fail():
+    base_request = lambda x: {
+        'model': 'llama3.1:8b',
+        'prompt': SimplePrompt('The quick brown fox jumps over the lazy dog.'),
+        'options': {
+            'num_ctx': x
+        }
+    }
+    results = call_llms([
+        base_request(256), # deve passar em todas as tentativas
+        base_request(40960), # deve falhar em todas as tentativas
+    ])
+
+    print(results)
+
+    assert len(results) == 1
+
+def test_call_llms_with_retry_success():
+    base_request = lambda x: {
+        'model': x,
+        'prompt': SimplePrompt('The quick brown fox jumps over the lazy dog.'),
+        'options': {
+            'num_ctx': 256
+        }
+    }
+    results = call_llms([
+        base_request('llama3.1:8b'), # deve passar em todas as tentativas
+        base_request('llama3'), # deve falhar em todas as tentativas
+    ])
+
+    print(results)
+
+    assert len(results) == 2
