@@ -36,8 +36,11 @@ def postprocess(processed_result: str, original: str) -> str:
         {
             'prompt': RAGPrompt(prompt="Com base no seguinte resumo de um acórdão do TRE e os trechos do contexto, refine o resumo, incluindo as seguintes informações omitidas no resumo original, mantendo sua estrutura original:\n\nResumo original:\n{original}\n\nInformações omitidas:\n{missing}\n\nTrechos do contexto:\n{context}\n\nResumo refinado:"),
             'options': {
-                'original': processed_result,
-                'missing': missing_tokens_list[i],
+                'input_dict': {
+                    'original': processed_result,
+                    'missing': missing_tokens_list[i]
+                },
+                'documents': orig_chunks,
             }
         } for i in range(len(missing_tokens_list))
     ])
