@@ -69,7 +69,7 @@ class LLMWorker(Thread):
         print('Processing data:', data)
         key: int | None = data.get('key', None)
         prompt: Prompt = data['prompt']
-        response = prompt.execute(host=data['host'], model=data['model'], options=data['options'])
+        response = prompt.execute(host=data['host'], model=data.get('model', Config.OLLAMA_MODEL), options=data['options'])
         return response, key
 
 # TODO: amount of prompts should come from .env
