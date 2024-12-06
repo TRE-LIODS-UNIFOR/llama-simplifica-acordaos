@@ -22,7 +22,10 @@ def postprocess(processed_result: str, original: str) -> str:
     pros_topics = ner.get_topics(pros_chunks)
     orig_topics = ner.get_topics(orig_chunks)
 
+    # Encontra tópicos omitidos e remove os duplicados
     missing_topics: list[str] = [topic for topic in orig_topics if topic not in pros_topics]
+    missing_topics_set: set[str] = set(missing_topics)
+    missing_topics: list[str] = list(missing_topics_set)
     missing_topics_text: str = '\n* '.join(missing_topics)
 
     print("Counting tokens")
