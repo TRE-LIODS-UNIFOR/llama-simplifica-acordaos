@@ -1,4 +1,4 @@
-from io import BytesIO
+from io import BufferedReader, BytesIO
 from flask import Flask, jsonify, request
 from werkzeug.datastructures import FileStorage
 
@@ -7,14 +7,14 @@ import preprocess
 from simplify import simplify
 from summarize import Prompts, summarize_section
 
-def summarize(doc: FileStorage, sections: list[int] | None = None) -> str:
+def summarize(doc: FileStorage | BufferedReader, sections: list[int] | None = None) -> str:
     pdf: BytesIO = BytesIO(doc.read())
     if sections is None:
         raise ValueError("Sections must be provided")
     # cabecalho = preprocess.partition(pdf, sections[0], sections[1])
     relatorio: str = preprocess.partition(pdf, sections[1], sections[2])
-    voto = preprocess.partition(pdf, sections[2], sections[3])
-    decisao = preprocess.partition(pdf, sections[3], sections[4])
+    voto: str = preprocess.partition(pdf, sections[2], sections[3])
+    decisao: str = preprocess.partition(pdf, sections[3], sections[4])
     print("\n\nSUMMARIZING\n\n")
     summaries: dict[str, str] = {
         "relatorio": summarize_section(relatorio, prompt=Prompts.RELATORIO, verbose=True, skip_postprocess=Config.SKIP_POSTPROCESS),

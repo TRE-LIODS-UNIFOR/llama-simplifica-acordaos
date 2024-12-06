@@ -1,129 +1,42 @@
+from pathlib import Path
+import time
+import pandas as pd
 import sys
-from uuid import uuid4
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.prompts import PromptTemplate
-from langchain_chroma import Chroma
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_ollama import ChatOllama
-from langchain_community.embeddings.ollama import OllamaEmbeddings
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from config import Config
-from database import PromptDB
-from models import Document, Prompt, Response
+from api import summarize
 
-db = PromptDB()
+BASE_DIR = Path(__file__).resolve().parent
 
-llm = ChatOllama(
-    temperature=Config.OLLAMA_TEMPERATURE,
-    base_url=Config.OLLAMA_BASE_URL,
-    model=Config.OLLAMA_MODEL,
-    streaming=True,
-    top_k=Config.OLLAMA_TOP_K,   # A higher value (100) will give more diverse answers, while a lower value (10) will be more conservative.
-    top_p=Config.OLLAMA_TOP_P,  # Higher value (0.95) will lead to more diverse text, while a lower value (0.5) will generate more focused text.
-    num_ctx=Config.OLLAMA_CONTEXT_SIZE,  # Sets the size of the context window used to generate the next token.
-    verbose=False,
-    keep_alive=Config.OLLAMA_KEEP_ALIVE
-)
+def simplificar_acordao(file_path: str | Path, sections: list[int]) -> str:
+    file = open(Path(file_path), 'rb')
+    result = summarize(file, sections)
+    file.close()
+    return result
 
-document_id = sys.argv[1]
-# print(f"document_id: {document_id}")
+def from_csv(file_path: str | Path) -> pd.DataFrame:
+    file_path = Path(file_path)
+    df: pd.DataFrame = pd.read_csv(file_path, index_col=0)
+    return df
 
-loader = PyMuPDFLoader(file_path=f'documentos/acordaos/{document_id}')
-doc = loader.load()
+if __name__ == "__main__":
+    dataset_path = BASE_DIR / sys.argv[1]
+    results_path = BASE_DIR / "results"
+    documents_dir = BASE_DIR / "documentos" / "acordaos"
 
-document = Document(
-    id=document_id
-)
-document_id = db.insert_document(document)
+    if not results_path.exists():
+        results_path.mkdir()
 
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=Config.SPLITTER_CHUNK_SIZE,
-    chunk_overlap=Config.SPLITTER_CHUNK_OVERLAP
-)
-chunks = text_splitter.split_documents(documents=[doc[0]])
+    acordaos = from_csv(dataset_path).iterrows()
 
-# print(f"amount of chunks: {len(chunks)}")
-# pprint(chunks)
-
-embeddings_model = OllamaEmbeddings(
-    base_url=Config.OLLAMA_EMBEDDINGS_BASE_URL,
-    model=Config.OLLAMA_EMBEDDINGS_MODEL
-)
-vectorstore = Chroma(
-    collection_name='acordaos',
-    embedding_function=embeddings_model,
-    persist_directory=f'./chroma_db/{document_id.split('.')[0]}'
-)
-vectorstore.add_documents(documents=chunks)
-retriever = vectorstore.as_retriever()
-
-with open('prompts/simplificar_acordao/cabecalho.txt', 'r') as f:
-    prompt_text = f.read()
-    prompt = PromptTemplate.from_template(prompt_text)
-
-# prompt_id = str(uuid4())
-# prompt_id = db.insert_prompt(
-#     Prompt(
-#         id=prompt_id,
-#         temperature=Config.OLLAMA_TEMPERATURE,
-#         prompt=prompt_text,
-#         chunk_overlap=Config.SPLITTER_CHUNK_OVERLAP,
-#         chunk_size=Config.SPLITTER_CHUNK_SIZE,
-#         context_size=Config.OLLAMA_CONTEXT_SIZE,
-#         embeddings_model=Config.OLLAMA_EMBEDDINGS_MODEL,
-#         model=Config.OLLAMA_MODEL,
-#         top_k=Config.OLLAMA_TOP_K,
-#         top_p=Config.OLLAMA_TOP_P,
-#         created_at=None
-#     )
-# )
-
-document_chain = create_stuff_documents_chain(llm, prompt)
-retrieval_chain = create_retrieval_chain(retriever, document_chain)
-
-def write_chunk(chunk):
-    with open('chunks.txt', 'a') as f:
-        f.write(chunk)
-
-chunks = []
-
-for chunk in retrieval_chain.stream(
-    {'input':
-        'Liste os tópicos especificados anteriormente no prompt de sistema.'}
-):
-    answer = chunk.get('answer', '')
-    chunks.append(answer)
-    write_chunk(answer)
-    print(answer, end='', flush=True)
-print()
-
-#answer = result['answer']
-# print(answer)
-# try:
-#     quality = int(input('quality (0-10): '))
-# except KeyboardInterrupt:
-#     quality = -1
-
-# response_id = str(uuid4())
-# db.insert_response(
-#     Response(
-#         id=response_id,
-#         prompt_id=prompt_id,
-#         quality=quality,
-#         response=answer,
-#         created_at=None,
-#         document_id=document_id
-#     )
-# )
-
-# db.commit()
-# db.close()
-
-# corpo = "# TRIBUNAL REGIONAL ELEITORAL DO CEARÁ\n\n" + corpo
-
-# to_save = corpo
-# save('simplificar_acordao', '', to_save)
-
-# print("".join(result))
+    for i, acordao in acordaos:
+        file_path = documents_dir / acordao["path"]
+        sections = [0, acordao["relatorio_pagina"], acordao["voto_pagina"], acordao["decisao_pagina"], acordao["num_paginas"]]
+        a = time.monotonic()
+        print(f"Processing {file_path}.", end=" ")
+        result = simplificar_acordao(file_path, sections)
+        with open(results_path / f"{file_path.stem}.txt", "w") as f:
+            f.write(result)
+        b = time.monotonic()
+        with open(results_path / f"{file_path.stem}_time.txt", "w") as f:
+            f.write(f"Time: {(b - a) / 60:.2f} minutes\n\n")
+        print(f"Done. Time: {(b - a) / 60:.2f} minutes.")

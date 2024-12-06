@@ -230,13 +230,7 @@ def summarize_section(document_contents: str, prompt: str | None = None, verbose
         print("Removendo redundâncias")
     redundant_sentences_res: list[tuple[dict[str, str], int | None]] = call_llms([
         {
-            "model": Config.OLLAMA_MODEL,
             "prompt": SimplePrompt(Prompts.SENTENCAS_REDUNDANTES.format(refined=post)),
-            "options": {
-                'temperature': 0.25,
-                'top_k': 5,
-                'top_p': 0.25,
-            }
         }
     ])
     res: list[str] = [res[0]['response'] for res in redundant_sentences_res]
@@ -249,13 +243,7 @@ def summarize_section(document_contents: str, prompt: str | None = None, verbose
         print("Refinando texto")
     refine_res: list[tuple[dict[str, str], int | None]] = call_llms([
         {
-            "model": Config.OLLAMA_MODEL,
             "prompt": SimplePrompt(Prompts.REFINAR_REDUNDANCIAS.format(redundancies=best, refined=post)),
-            "options": {
-                'temperature': 0.25,
-                'top_k': 5,
-                'top_p': 0.25,
-            }
         } for _ in range(n_factor)
     ])
     res: list[str] = [res[0]['response'] for res in refine_res]

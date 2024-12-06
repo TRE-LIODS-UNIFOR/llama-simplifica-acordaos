@@ -57,12 +57,8 @@ def n_stuff(n: int = 1, docs: list[Document] | None = None, prompt: str | None =
         raise ValueError("docs must be provided")
     responses: list[tuple[dict[str, str], int | None]] = call_llms([
         {
-            "model": Config.OLLAMA_MODEL,
             "prompt": RAGPrompt(prompt),
             "options": {
-                'temperature': 0.0,
-                'top_k': 2,
-                'top_p': 0.05,
                 'documents': docs,
             },
         } for _ in range(n)

@@ -140,11 +140,6 @@ def parallel_mapreduce(docs: list[Document]):
             {
                 "model": Config.OLLAMA_MODEL,
                 "prompt": SimplePrompt(Prompts.MAP.format(context=doc.page_content)),
-                "options": {
-                    'temperature': 0.25,
-                    'top_k': 5,
-                    'top_p': 0.25,
-                },
                 "key": i
             } for i, doc in enumerate(docs)
         ],
@@ -159,9 +154,9 @@ def parallel_mapreduce(docs: list[Document]):
                 "model": Config.OLLAMA_MODEL,
                 "prompt": SimplePrompt(Prompts.REDUCE.format(context=summary)),
                 "options": {
-                    'temperature': 0.25 + 0.1 * i,
-                    'top_k': 5 + i,
-                    'top_p': 0.25 + 0.1 * i,
+                    'temperature': Config.OLLAMA_TEMPERATURE + 0.1 * i,
+                    'top_k': Config.OLLAMA_TOP_K + i,
+                    'top_p': Config.OLLAMA_TOP_P + 0.1 * i,
                 },
                 "key": i
             } for i in range(Config.N_FACTOR)

@@ -20,12 +20,9 @@ logging.set_verbosity_error()
 from semantic_similarity import get_similarity_score
 
 def simplify_segments(segments):
-    options = {'temperature': 0.25, 'top_k': 5, 'top_p': 0.25}
     responses = call_llms([
         {
-            'model': 'llama3.1:8b',
             'prompt': SimplePrompt(f'Reescreva a seguinte frase, mantendo o tom e o sentido, visando facilitar o entendimento. Responda apenas com a frase reescrita, e mais nada.\nFrase original: "{sentence}"\nFrase reescrita: '),
-            'options': options,
             'key': i
         } for i, sentence in enumerate(segments)
     ])
@@ -130,9 +127,7 @@ def personalize(text):
     candidates = list(product(impersonal_verbs, nouns))
     rewritten = call_llms([
         {
-            'model': 'llama3.1:8b',
             'prompt': f"""Por favor, reescreva a frase "{text}", mas utilizando um verbo pessoal no lugar do verbo '{verbo}', onde o sujeito é '{sujeito}'. A nova frase deve manter o sentido original, mas indicando que '{sujeito}' realizou a ação. Responda apenas com a frase reescrita, e mais nada.""",
-            'options': {'temperature': 0.25, 'top_p': 0.25, 'top_k': 5},
             'key': i,
         } for i, (verbo, sujeito) in enumerate(candidates)
     ])
@@ -149,7 +144,6 @@ def collapse(text):
 Texto reescrito:"""
     res = call_llms([
         {
-            'model': 'llama3.1:8b',
             'prompt': prompt.format(context=text),
             'options': {'temperature': 0.0 + i / 10, 'top_p': 0.1 + i/10, 'top_k': 2 + i},
             'key': i
@@ -166,7 +160,6 @@ def long_period(text):
 Nova versão:"""
     res = call_llms([
         {
-            'model': 'llama3.1:8b',
             'prompt': prompt.format(text=text),
             'options': {'temperature': 0.0 + i / 10, 'top_p': 0.1 + i/10, 'top_k': 10 + i},
             'key': i
