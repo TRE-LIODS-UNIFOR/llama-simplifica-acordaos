@@ -14,15 +14,18 @@ def postprocess(processed_result: str, original: str) -> str:
     """
     ner: NER = NER()
 
+    print("Getting chunks")
     pros_chunks: list[Document] = split_text(processed_result, split_by='character', chunk_size=512, chunk_overlap=32)
     orig_chunks: list[Document] = split_text(original, split_by='character', chunk_size=512, chunk_overlap=32)
 
+    print("Getting topics")
     pros_topics = ner.get_topics(pros_chunks)
     orig_topics = ner.get_topics(orig_chunks)
 
     missing_topics: list[str] = [topic for topic in orig_topics if topic not in pros_topics]
     missing_topics_text: str = '\n* '.join(missing_topics)
 
+    print("Counting tokens")
     n_tokens: int = get_token_count(processed_result + missing_topics_text)
 
     if n_tokens > Config.OLLAMA_CONTEXT_SIZE:
@@ -32,6 +35,7 @@ def postprocess(processed_result: str, original: str) -> str:
     else:
         missing_tokens_list = ['\n* '.join(missing_topics)]
 
+    print("Executing prompts")
     result: list[tuple[dict[str, str], int | None]] = call_llms([
         {
             'prompt': RAGPrompt(prompt="Com base no seguinte resumo de um acórdão do TRE e os trechos do contexto, refine o resumo, incluindo as seguintes informações omitidas no resumo original, mantendo sua estrutura original:\n\nResumo original:\n{original}\n\nInformações omitidas:\n{missing}\n\nTrechos do contexto:\n{context}\n\nResumo refinado:"),
@@ -44,6 +48,7 @@ def postprocess(processed_result: str, original: str) -> str:
             }
         } for i in range(len(missing_tokens_list))
     ])
+    print("Done.")
 
     return result[0][0]['response']
 
