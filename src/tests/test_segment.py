@@ -42,7 +42,10 @@ def test_join_paragraphs():
     mask = [1, 3]
     paragraphs = join_paragraphs(segments, mask)
 
+    print("\n".join(paragraphs))
+
     assert len(paragraphs) == 3
     assert paragraphs[0] == "Esta é uma frase. Esta é outra frase."
     assert paragraphs[1] == "Um novo parágrafo. Um pouco de texto."
     assert paragraphs[2] == "Mais uma frase."
+

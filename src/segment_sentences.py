@@ -18,7 +18,7 @@ def paragraph_mask(segments: list[str]) -> list[int]:
 def join_paragraphs(segments: list[str], mask: list[int]) -> list[str]:
     paragraphs: list[list[str]] = [[]]
     for i, segment in enumerate(segments):
-        paragraphs[-1].append(segment.replace("\n", "").strip())
+        paragraphs[-1].append(segment.strip())
         if i in mask:
             paragraphs.append([])
 
