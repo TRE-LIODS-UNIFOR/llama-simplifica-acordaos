@@ -11,12 +11,13 @@ def summarize(doc: FileStorage | BufferedReader, sections: list[int] | None = No
     pdf: BytesIO = BytesIO(doc.read())
     if sections is None:
         raise ValueError("Sections must be provided")
-    # cabecalho = preprocess.partition(pdf, sections[0], sections[1])
+    cabecalho = preprocess.partition(pdf, sections[0], sections[1])
     relatorio: str = preprocess.partition(pdf, sections[1], sections[2])
     voto: str = preprocess.partition(pdf, sections[2], sections[3])
     decisao: str = preprocess.partition(pdf, sections[3], sections[4])
     print("\n\nSUMMARIZING\n\n")
     summaries: dict[str, str] = {
+        "cabecalho": summarize_section(cabecalho, prompt=Prompts.CABECALHO, verbose=True, skip_postprocess=Config.SKIP_POSTPROCESS),
         "relatorio": summarize_section(relatorio, prompt=Prompts.RELATORIO, verbose=True, skip_postprocess=Config.SKIP_POSTPROCESS),
         "voto": summarize_section(voto, prompt=Prompts.VOTO, verbose=True, skip_postprocess=Config.SKIP_POSTPROCESS),
         "decisao": summarize_section(decisao, prompt=Prompts.DECISAO, verbose=True, skip_postprocess=Config.SKIP_POSTPROCESS),
@@ -25,11 +26,13 @@ def summarize(doc: FileStorage | BufferedReader, sections: list[int] | None = No
     print("\n\nSIMPLIFYING\n\n")
 
     simplified = {
+        "cabecalho": summaries["cabecalho"],
         "relatorio": simplify(summaries["relatorio"]),
         "voto": simplify(summaries["voto"]),
         "decisao": simplify(summaries["decisao"]),
     }
-    result = f"""
+    result = f"""{simplified['cabecalho']}
+
 # Relatório
 
 {simplified['relatorio'][0]}
